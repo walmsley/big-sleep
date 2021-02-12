@@ -236,6 +236,7 @@ class Imagine(nn.Module):
         save_date_time = False,
         save_best = False,
         experimental_resample = False,
+        textpath = None,
     ):
         super().__init__()
 
@@ -278,6 +279,8 @@ class Imagine(nn.Module):
         self.total_image_updates = (self.epochs * self.iterations) / self.save_every
 
         self.set_text(text)
+        if textpath is not None:
+            self.set_textpath(textpath)
 
     def set_text(self, text):
         self.text = text
@@ -288,6 +291,10 @@ class Imagine(nn.Module):
         self.textpath = textpath
         self.filename = Path(f'./{textpath}.png')
         self.encoded_text = tokenize(text).cuda()
+        
+    def set_textpath(self, textpath):
+        self.textpath = textpath
+        self.filename = Path(f'./{textpath}.png')
 
     def reset(self):
         self.model.reset()
@@ -320,8 +327,8 @@ class Imagine(nn.Module):
 
                 if self.save_progress:
                     total_iterations = epoch * self.iterations + i
-                    num = total_iterations // self.save_every
-                    save_image(image, Path(f'./{self.textpath}.{num}.png'))
+                    #num = total_iterations // self.save_every
+                    save_image(image, Path(f'./{self.textpath}.{total_iterations}.png'))
 
                 if self.save_best and top_score.item() < self.current_best_score:
                     self.current_best_score = top_score.item()
