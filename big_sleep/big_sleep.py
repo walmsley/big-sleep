@@ -237,6 +237,7 @@ class Imagine(nn.Module):
         save_best = False,
         experimental_resample = False,
         textpath = None,
+        num_cutouts = 128,
     ):
         super().__init__()
 
@@ -260,6 +261,7 @@ class Imagine(nn.Module):
             max_classes = max_classes,
             class_temperature = class_temperature,
             experimental_resample = experimental_resample,
+            num_cutouts = num_cutouts,
         ).cuda()
 
         self.model = model
