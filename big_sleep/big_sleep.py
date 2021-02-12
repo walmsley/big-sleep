@@ -331,10 +331,12 @@ class Imagine(nn.Module):
                     total_iterations = epoch * self.iterations + i
                     #num = total_iterations // self.save_every
                     save_image(image, Path(f'./{self.textpath}.{total_iterations}.png'))
+                    torch.save(self.model.model.latents, Path(f'./{self.textpath}.{total_iterations}.pth'))
 
                 if self.save_best and top_score.item() < self.current_best_score:
                     self.current_best_score = top_score.item()
                     save_image(image, Path(f'./{self.textpath}.best.png'))
+                    torch.save(self.model.model.latents, Path(f'./{self.textpath}.best.pth'))
 
         return total_loss
 
