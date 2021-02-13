@@ -178,10 +178,12 @@ class BigSleep(nn.Module):
         for ch in range(num_cutouts):
             if self.num_cutouts > 1:
                 size = int(width * torch.zeros(1,).normal_(mean=.8, std=.3).clip(.5, .95))
+                offsetx = torch.randint(0, width - size, ())
+                offsety = torch.randint(0, width - size, ())
             else:
                 size = width
-            offsetx = torch.randint(0, width - size, ())
-            offsety = torch.randint(0, width - size, ())
+                offsetx = 0
+                offsety = 0
             apper = out[:, :, offsetx:offsetx + size, offsety:offsety + size]
             if (self.experimental_resample):
                 apper = resample(apper, (224, 224))
