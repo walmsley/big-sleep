@@ -274,7 +274,8 @@ class Imagine(nn.Module):
         self.model = model
 
         self.lr = lr
-        if use_adamp:
+        self.use_adamp = use_adamp
+        if self.use_adamp:
             self.optimizer = AdamP(model.model.latents.parameters(), lr)
         else:
             self.optimizer = Adam(model.model.latents.parameters(), lr)
@@ -311,7 +312,7 @@ class Imagine(nn.Module):
     def reset(self):
         self.model.reset()
         self.model = self.model.cuda()
-        if use_adamp:
+        if self.use_adamp:
             self.optimizer = AdamP(self.model.model.latents.parameters(), self.lr)
         else:
             self.optimizer = Adam(self.model.model.latents.parameters(), self.lr)
