@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.optim import Adam
+from torch_optimizer import AdamP
 
 import torchvision
 from torchvision.utils import save_image
@@ -243,6 +244,7 @@ class Imagine(nn.Module):
         experimental_resample = False,
         textpath = None,
         num_cutouts = 128,
+        use_adamp = False,
     ):
         super().__init__()
 
@@ -272,7 +274,10 @@ class Imagine(nn.Module):
         self.model = model
 
         self.lr = lr
-        self.optimizer = Adam(model.model.latents.parameters(), lr)
+        if use_adamp:
+            self.optimizer = AdamP(model.model.latents.parameters(), lr)
+        else:
+            self.optimizer = Adam(model.model.latents.parameters(), lr)
         self.gradient_accumulate_every = gradient_accumulate_every
         self.save_every = save_every
 
@@ -306,7 +311,10 @@ class Imagine(nn.Module):
     def reset(self):
         self.model.reset()
         self.model = self.model.cuda()
-        self.optimizer = Adam(self.model.model.latents.parameters(), self.lr)
+        if use_adamp:
+            self.optimizer = AdamP(self.model.model.latents.parameters(), self.lr)
+        else:
+            self.optimizer = Adam(self.model.model.latents.parameters(), self.lr)
 
     def train_step(self, epoch, i, pbar=None):
         total_loss = 0
