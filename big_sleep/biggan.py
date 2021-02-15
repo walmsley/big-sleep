@@ -516,15 +516,11 @@ class Generator(nn.Module):
         z = z.permute(0, 3, 1, 2).contiguous()
 
         for i, layer in enumerate(self.layers):
-            
             if isinstance(layer, GenBlock):
-                print('DEBUG WW: ', i, 'genblock')
                 z = layer(z, cond_vector[i+1].unsqueeze(0), truncation)
                 # z = layer(z, cond_vector[].unsqueeze(0), truncation)
             else:
-                print('DEBUG WW: ', i, 'other')
                 z = layer(z)
-        print('DEBUG WW: ', 'done', i)
 
         z = self.bn(z, truncation)
         z = self.relu(z)
