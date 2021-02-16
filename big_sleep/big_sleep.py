@@ -167,7 +167,7 @@ class BigSleep(nn.Module):
     def reset(self):
         self.model.init_latents()
 
-    def forward(self, text, return_loss = True):
+    def forward(self, text_embed, return_loss = True):
         width, num_cutouts = self.image_size, self.num_cutouts
 
         out = self.model()
@@ -196,14 +196,13 @@ class BigSleep(nn.Module):
         into = normalize_image(into)
 
         image_embed = perceptor.encode_image(into)
-        text_embed = perceptor.encode_text(text)
 
         latents, soft_one_hot_classes = self.model.latents()
         num_latents = latents.shape[0]
         latent_thres = self.model.latents.thresh_lat
 
         lat_loss =  torch.abs(1 - torch.std(latents, dim=1)).mean() + \
-                    torch.abs(torch.mean(latents)).mean() + \
+                    torch.abs(torch.mean(latents, dim = 1)).mean() + \
                     4 * torch.max(torch.square(latents).mean(), latent_thres)
 
         for array in latents:
@@ -215,7 +214,8 @@ class BigSleep(nn.Module):
             skews = torch.mean(torch.pow(zscores, 3.0))
             kurtoses = torch.mean(torch.pow(zscores, 4.0)) - 3.0
 
-        lat_loss = lat_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
+            lat_loss = lat_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
+
         cls_loss = ((50 * torch.topk(soft_one_hot_classes, largest = False, dim = 1, k = 999)[0]) ** 2).mean()
 
         sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
@@ -303,8 +303,9 @@ class Imagine(nn.Module):
 
         self.textpath = textpath
         self.filename = Path(f'./{textpath}.png')
-        self.encoded_text = tokenize(text).cuda()
-        
+        encoded_text = tokenize(text).cuda()
+        self.encoded_text = perceptor.encode_text(encoded_text).detach()
+
     def set_textpath(self, textpath):
         self.textpath = textpath
         self.filename = Path(f'./{textpath}.png')
@@ -339,7 +340,7 @@ class Imagine(nn.Module):
                     pbar.update(1)
                 else:
                     print(f'image updated at "./{str(self.filename)}"')
-                    
+
 
                 if self.save_progress:
                     total_iterations = epoch * self.iterations + i
