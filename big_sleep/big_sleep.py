@@ -221,7 +221,8 @@ class BigSleep(nn.Module):
 
             lat_loss = lat_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
 
-        cls_loss = ((50 * torch.topk(soft_one_hot_classes, largest = False, dim = 1, k = 999)[0]) ** 2).mean()
+        cls_loss = ((50 * torch.topk(soft_one_hot_classes, largest = False, dim = 1, k = 999)[0]) ** 2).mean() + \
+                   ((1.0 - torch.max(soft_one_hot_classes)) ** 2).mean()
 
         sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
         return (lat_loss, cls_loss, sim_loss)
@@ -351,12 +352,12 @@ class Imagine(nn.Module):
                     total_iterations = epoch * self.iterations + i
                     #num = total_iterations // self.save_every
                     save_image(image, Path(f'./{self.textpath}.{total_iterations}.png'))
-                    torch.save(self.model.model.latents, Path(f'./{self.textpath}.{total_iterations}.pth'))
+                    torch.save(self.model.model.latents(), Path(f'./{self.textpath}.{total_iterations}.pth'))
 
                 if self.save_best and top_score.item() < self.current_best_score:
                     self.current_best_score = top_score.item()
                     save_image(image, Path(f'./{self.textpath}.best.png'))
-                    torch.save(self.model.model.latents, Path(f'./{self.textpath}.best.pth'))
+                    torch.save(self.model.model.latents(), Path(f'./{self.textpath}.best.pth'))
 
         return total_loss
 
