@@ -136,6 +136,9 @@ class Model(nn.Module):
             max_classes = self.max_classes,
             class_temperature = self.class_temperature
         )
+        
+    def set_latents(self, latents):
+        self.latents = latents
 
     def forward(self):
         self.biggan.eval()
@@ -337,10 +340,8 @@ class Imagine(nn.Module):
 
         if (i + 1) % self.save_every == 0:
             with torch.no_grad():
-                top_score, best = torch.topk(losses[2], k = 1, largest = False)
-                print('best', best)
-                print('losses[2].size()', losses[2].size())
-                image = self.model.model()[best].cpu()
+                top_score = losses[2]
+                image = self.model.model()[0].cpu()
 
                 save_image(image, str(self.filename))
                 if pbar is not None:
@@ -353,12 +354,12 @@ class Imagine(nn.Module):
                     total_iterations = epoch * self.iterations + i
                     #num = total_iterations // self.save_every
                     save_image(image, Path(f'./{self.textpath}.{total_iterations}.png'))
-                    torch.save(self.model.model.latents(), Path(f'./{self.textpath}.{total_iterations}.pth'))
+                    torch.save(self.model.model.latents, Path(f'./{self.textpath}.{total_iterations}.pth'))
 
                 if self.save_best and top_score.item() < self.current_best_score:
                     self.current_best_score = top_score.item()
                     save_image(image, Path(f'./{self.textpath}.best.png'))
-                    torch.save(self.model.model.latents(), Path(f'./{self.textpath}.best.pth'))
+                    torch.save(self.model.model.latents, Path(f'./{self.textpath}.best.pth'))
 
         return total_loss
 
