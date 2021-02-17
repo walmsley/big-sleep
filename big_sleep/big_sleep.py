@@ -223,7 +223,7 @@ class BigSleep(nn.Module):
 
         top_classes = torch.max(soft_one_hot_classes, dim=1)[0]
         # Ignore the single top class for each latent vector
-        cls_loss = 2500 * ((soft_one_hot_classes ** 2).sum() - (top_classes ** 2).sum()) / (soft_one_hot_classes.numel() - top_classes.numel())
+        cls_loss = ((50 * torch.topk(soft_one_hot_classes, largest = False, dim = 1, k = 999)[0]) ** 2).mean()
 
         sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
         return (lat_loss, cls_loss, sim_loss)
