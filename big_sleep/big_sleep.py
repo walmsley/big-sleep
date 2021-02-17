@@ -221,7 +221,7 @@ class BigSleep(nn.Module):
 
             lat_loss = lat_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
 
-        top_classes = torch.max(soft_one_hot_classes, dim=1)
+        top_classes = torch.max(soft_one_hot_classes, dim=1)[0]
         # Ignore the single top class for each latent vector
         cls_loss = 2500 * ((soft_one_hot_classes ** 2).sum() - (top_classes ** 2).sum()) / (soft_one_hot_classes.numel() - top_classes.numel())
 
