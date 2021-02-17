@@ -338,6 +338,8 @@ class Imagine(nn.Module):
         if (i + 1) % self.save_every == 0:
             with torch.no_grad():
                 top_score, best = torch.topk(losses[2], k = 1, largest = False)
+                print('best', best)
+                print('losses[2].size()', losses[2].size())
                 image = self.model.model()[best].cpu()
 
                 save_image(image, str(self.filename))
