@@ -94,11 +94,12 @@ class Latents(torch.nn.Module):
         num_classes = 1000,
         z_dim = 128,
         max_classes = None,
-        class_temperature = 2.
+        class_temperature = 2.,
+        class_mean = -3.9,
     ):
         super().__init__()
         self.normu = torch.nn.Parameter(torch.zeros(num_latents, z_dim).normal_(std = 1))
-        self.cls = torch.nn.Parameter(torch.zeros(num_latents, num_classes).normal_(mean = -3.9, std = .3))
+        self.cls = torch.nn.Parameter(torch.zeros(num_latents, num_classes).normal_(mean = class_mean, std = .3))
         self.register_buffer('thresh_lat', torch.tensor(1))
 
         assert not exists(max_classes) or max_classes > 0 and max_classes <= num_classes, f'max_classes must be between 0 and {num_classes}'
@@ -118,7 +119,8 @@ class Model(nn.Module):
         self,
         image_size,
         max_classes = None,
-        class_temperature = 2.
+        class_temperature = 2.,
+        class_mean = -3.9,
     ):
         super().__init__()
         assert image_size in (128, 256, 512), 'image size must be one of 128, 256, or 512'
@@ -134,7 +136,8 @@ class Model(nn.Module):
             num_classes = self.biggan.config.num_classes,
             z_dim = self.biggan.config.z_dim,
             max_classes = self.max_classes,
-            class_temperature = self.class_temperature
+            class_temperature = self.class_temperature,
+            class_mean = class_mean,
         )
 
     def set_latents(self, latents):
@@ -157,6 +160,7 @@ class BigSleep(nn.Module):
         max_classes = None,
         class_temperature = 2.,
         experimental_resample = False,
+        class_mean = -3.9,
     ):
         super().__init__()
         self.loss_coef = loss_coef
@@ -169,7 +173,8 @@ class BigSleep(nn.Module):
         self.model = Model(
             image_size = image_size,
             max_classes = max_classes,
-            class_temperature = class_temperature
+            class_temperature = class_temperature,
+            class_mean = class_mean,
         )
 
     def reset(self):
@@ -255,7 +260,8 @@ class Imagine(nn.Module):
         textpath = None,
         num_cutouts = 128,
         use_adamp = False,
-        scale_loss = (1.,1.,1.,0.)
+        scale_loss = (1.,1.,1.,0.),
+        class_mean = -3.9,
     ):
         super().__init__()
 
@@ -280,6 +286,7 @@ class Imagine(nn.Module):
             class_temperature = class_temperature,
             experimental_resample = experimental_resample,
             num_cutouts = num_cutouts,
+            class_mean = class_mean,
         ).cuda()
 
         self.model = model
