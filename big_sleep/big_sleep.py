@@ -206,6 +206,7 @@ class BigSleep(nn.Module):
         image_embed = perceptor.encode_image(into)
 
         latents, soft_one_hot_classes = self.model.latents()
+        print('cls_sum', torch.sum(soft_one_hot_classes).item())
         num_latents = latents.shape[0]
         latent_thres = self.model.latents.thresh_lat
 
@@ -331,7 +332,8 @@ class Imagine(nn.Module):
 
         for _ in range(self.gradient_accumulate_every):
             losses = self.model(self.encoded_text)
-            print('losses', losses)
+            with torch.no_grad():
+                print('losses', [loss.item() for loss in losses])
             loss = sum(losses) / self.gradient_accumulate_every
             total_loss += loss
             loss.backward()
