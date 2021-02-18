@@ -136,7 +136,7 @@ class Model(nn.Module):
             max_classes = self.max_classes,
             class_temperature = self.class_temperature
         )
-        
+
     def set_latents(self, latents):
         self.latents = latents
 
@@ -223,7 +223,7 @@ class BigSleep(nn.Module):
             kurtoses = torch.mean(torch.pow(zscores, 4.0)) - 3.0
 
             lat_loss = lat_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
-        
+
         cls_loss = ((50 * torch.topk(soft_one_hot_classes, largest = False, dim = 1, k = 999)[0]) ** 2).mean()
 
         sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
@@ -331,6 +331,7 @@ class Imagine(nn.Module):
 
         for _ in range(self.gradient_accumulate_every):
             losses = self.model(self.encoded_text)
+            print('losses', losses)
             loss = sum(losses) / self.gradient_accumulate_every
             total_loss += loss
             loss.backward()
