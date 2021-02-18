@@ -128,6 +128,7 @@ class Model(nn.Module):
 
         self.max_classes = max_classes
         self.class_temperature = class_temperature
+        self.class_mean = class_mean
         self.init_latents()
 
     def init_latents(self):
@@ -137,7 +138,7 @@ class Model(nn.Module):
             z_dim = self.biggan.config.z_dim,
             max_classes = self.max_classes,
             class_temperature = self.class_temperature,
-            class_mean = class_mean,
+            class_mean = self.class_mean,
         )
 
     def set_latents(self, latents):
