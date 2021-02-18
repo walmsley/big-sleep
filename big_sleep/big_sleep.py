@@ -206,7 +206,6 @@ class BigSleep(nn.Module):
         image_embed = perceptor.encode_image(into)
 
         latents, soft_one_hot_classes = self.model.latents()
-        print('cls_sum', torch.sum(soft_one_hot_classes).item())
         num_latents = latents.shape[0]
         latent_thres = self.model.latents.thresh_lat
 
@@ -226,9 +225,11 @@ class BigSleep(nn.Module):
             lat_loss = lat_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
 
         cls_loss = ((50 * torch.topk(soft_one_hot_classes, largest = False, dim = 1, k = 999)[0]) ** 2).mean()
+        cls_sum_loss = torch.sum(soft_one_hot_classes)
+        print('cls_sum', cls_sum_loss.item())
 
         sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
-        return (lat_loss, cls_loss, sim_loss)
+        return (lat_loss, cls_loss, sim_loss, cls_sum_loss)
 
 class Imagine(nn.Module):
     def __init__(
@@ -254,6 +255,7 @@ class Imagine(nn.Module):
         textpath = None,
         num_cutouts = 128,
         use_adamp = False,
+        scale_loss = (1.,1.,1.,0.)
     ):
         super().__init__()
 
@@ -297,6 +299,8 @@ class Imagine(nn.Module):
         self.save_best = save_best
         self.current_best_score = 0
 
+        self.scale_loss = scale_loss
+
         self.open_folder = open_folder
         self.total_image_updates = (self.epochs * self.iterations) / self.save_every
 
@@ -334,7 +338,7 @@ class Imagine(nn.Module):
             losses = self.model(self.encoded_text)
             with torch.no_grad():
                 print('losses', [loss.item() for loss in losses])
-            loss = sum(losses) / self.gradient_accumulate_every
+            loss = sum([loss*self.scale_loss[i] for i,loss in enumerate(losses)]) / self.gradient_accumulate_every
             total_loss += loss
             loss.backward()
 
