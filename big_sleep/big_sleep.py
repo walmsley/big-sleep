@@ -192,7 +192,7 @@ class BigSleep(nn.Module):
         pieces = []
         for ch in range(num_cutouts):
             if self.num_cutouts > 1:
-                size = int(width * torch.zeros(1,).normal_(mean=.8, std=.3).clip(.5, .95))
+                size = int(width * torch.zeros(1,).normal_(mean=.8, std=.3).clip(.4375, .998)) #224 to 511
                 offsetx = torch.randint(0, width - size, ())
                 offsety = torch.randint(0, width - size, ())
             else:
