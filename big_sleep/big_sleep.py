@@ -342,9 +342,9 @@ class Imagine(nn.Module):
 
     def reset_optimizer(self):
         if self.use_adamp:
-            self.optimizer = AdamP(self.model.model.latents.parameters(), lr)
+            self.optimizer = AdamP(self.model.model.latents.parameters(), self.lr)
         else:
-            self.optimizer = Adam(self.model.model.latents.parameters(), lr)
+            self.optimizer = Adam(self.model.model.latents.parameters(), self.lr)
 
     def reset(self):
         self.model.reset()
