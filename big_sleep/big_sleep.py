@@ -301,10 +301,8 @@ class Imagine(nn.Module):
 
         self.lr = lr
         self.use_adamp = use_adamp
-        if self.use_adamp:
-            self.optimizer = AdamP(model.model.latents.parameters(), lr)
-        else:
-            self.optimizer = Adam(model.model.latents.parameters(), lr)
+        self.reset_optimizer()
+
         self.gradient_accumulate_every = gradient_accumulate_every
         self.save_every = save_every
 
@@ -338,13 +336,20 @@ class Imagine(nn.Module):
         self.textpath = textpath
         self.filename = Path(f'./{textpath}.png')
 
+    def set_latents(latents):
+        self.model.model.set_latents(latents)
+        self.reset_optimizer()
+
+    def reset_optimizer():
+        if self.use_adamp:
+            self.optimizer = AdamP(model.model.latents.parameters(), lr)
+        else:
+            self.optimizer = Adam(model.model.latents.parameters(), lr)
+
     def reset(self):
         self.model.reset()
         self.model = self.model.cuda()
-        if self.use_adamp:
-            self.optimizer = AdamP(self.model.model.latents.parameters(), self.lr)
-        else:
-            self.optimizer = Adam(self.model.model.latents.parameters(), self.lr)
+        self.reset_optimizer()
 
     def train_step(self, epoch, i, pbar=None):
         total_loss = 0
