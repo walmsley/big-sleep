@@ -238,7 +238,6 @@ class BigSleep(nn.Module):
 
         cls_loss = ((50 * torch.topk(soft_one_hot_classes, largest = False, dim = 1, k = 999)[0]) ** 2).mean()
         cls_sum_loss = torch.abs(torch.sum(soft_one_hot_classes, dim=1) - 1.).mean()
-        print('cls_sum', cls_sum_loss.item())
 
         sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
         return (lat_loss, cls_loss, sim_loss, cls_sum_loss)
@@ -352,8 +351,6 @@ class Imagine(nn.Module):
 
         for _ in range(self.gradient_accumulate_every):
             losses = self.model(self.encoded_text)
-            with torch.no_grad():
-                print('losses', [loss.item() for loss in losses])
             loss = sum([loss*self.scale_loss[i] for i,loss in enumerate(losses)]) / self.gradient_accumulate_every
             total_loss += loss
             loss.backward()
@@ -363,6 +360,7 @@ class Imagine(nn.Module):
 
         if (i + 1) % self.save_every == 0:
             with torch.no_grad():
+                print('losses', [loss.item() for loss in losses])
                 top_score = losses[2]
                 image = self.model.model()[0].cpu()
 
