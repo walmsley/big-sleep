@@ -336,11 +336,11 @@ class Imagine(nn.Module):
         self.textpath = textpath
         self.filename = Path(f'./{textpath}.png')
 
-    def set_latents(latents):
+    def set_latents(self, latents):
         self.model.model.set_latents(latents)
         self.reset_optimizer()
 
-    def reset_optimizer():
+    def reset_optimizer(self):
         if self.use_adamp:
             self.optimizer = AdamP(model.model.latents.parameters(), lr)
         else:
