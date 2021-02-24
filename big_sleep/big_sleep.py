@@ -91,45 +91,30 @@ class Latents(torch.nn.Module):
     def __init__(
         self,
         num_latents = 15,
-        num_classes = 1000,
+        cls_embed_dim = 128,
         z_dim = 128,
-        max_classes = None,
-        class_temperature = 2.,
-        class_mean = -3.9,
-        class_std = 0.3,
+        class_mean = 0.,
+        class_std = 10.,
     ):
         super().__init__()
         self.normu = torch.nn.Parameter(torch.zeros(num_latents, z_dim).normal_(std = 1))
-        self.cls = torch.nn.Parameter(torch.zeros(num_latents, num_classes).normal_(mean = class_mean, std = class_std))
+        self.cls_embed = torch.nn.Parameter(torch.zeros(num_latents, cls_embed_dim).normal_(mean = class_mean, std = class_std))
         self.register_buffer('thresh_lat', torch.tensor(1))
 
-        assert not exists(max_classes) or max_classes > 0 and max_classes <= num_classes, f'max_classes must be between 0 and {num_classes}'
-        self.max_classes = max_classes
-        self.class_temperature = class_temperature
-
     def forward(self):
-        if exists(self.max_classes):
-            classes = differentiable_topk(self.cls, self.max_classes, temperature = self.class_temperature)
-        else:
-            classes = torch.sigmoid(self.cls)
-
-        return self.normu, classes
+        return self.normu, self.cls_embed
 
 class Model(nn.Module):
     def __init__(
         self,
         image_size,
-        max_classes = None,
-        class_temperature = 2.,
-        class_mean = -3.9,
-        class_std = 0.3,
+        class_mean = 0.,
+        class_std = 10.,
     ):
         super().__init__()
         assert image_size in (128, 256, 512), 'image size must be one of 128, 256, or 512'
         self.biggan = BigGAN.from_pretrained(f'biggan-deep-{image_size}')
 
-        self.max_classes = max_classes
-        self.class_temperature = class_temperature
         self.class_mean = class_mean
         self.class_std = class_std
         self.init_latents()
@@ -137,10 +122,8 @@ class Model(nn.Module):
     def init_latents(self):
         self.latents = Latents(
             num_latents = len(self.biggan.config.layers) + 1,
-            num_classes = self.biggan.config.num_classes,
-            z_dim = self.biggan.config.z_dim,
-            max_classes = self.max_classes,
-            class_temperature = self.class_temperature,
+            cls_embed_dim = self.biggan.config.z_dim,
+            z_dim = self.biggan.config.class_embed_dim,
             class_mean = self.class_mean,
             class_std = self.class_std,
         )
@@ -162,11 +145,9 @@ class BigSleep(nn.Module):
         loss_coef = 100,
         image_size = 512,
         bilinear = False,
-        max_classes = None,
-        class_temperature = 2.,
         experimental_resample = False,
-        class_mean = -3.9,
-        class_std = 0.3,
+        class_mean = 0.,
+        class_std = 10.,
     ):
         super().__init__()
         self.loss_coef = loss_coef
@@ -178,8 +159,6 @@ class BigSleep(nn.Module):
 
         self.model = Model(
             image_size = image_size,
-            max_classes = max_classes,
-            class_temperature = class_temperature,
             class_mean = class_mean,
             class_std = class_std,
         )
@@ -217,7 +196,7 @@ class BigSleep(nn.Module):
 
         image_embed = perceptor.encode_image(into)
 
-        latents, soft_one_hot_classes = self.model.latents()
+        latents, cls_embeds = self.model.latents()
         num_latents = latents.shape[0]
         latent_thres = self.model.latents.thresh_lat
 
@@ -236,11 +215,13 @@ class BigSleep(nn.Module):
 
             lat_loss = lat_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
 
-        cls_loss = ((50 * torch.topk(soft_one_hot_classes, largest = False, dim = 1, k = 999)[0]) ** 2).mean()
-        cls_sum_loss = torch.abs(torch.sum(soft_one_hot_classes, dim=1) - 1.).mean()
+        cls_embed_loss = torch.abs(10. - torch.std(cls_embeds, dim=1)).mean() + \
+                        torch.abs(torch.mean(cls_embeds, dim = 1)).mean()
+
+        cls_optional_loss = 4 * torch.max(torch.square(cls_embeds).mean(), latent_thres)
 
         sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
-        return (lat_loss, cls_loss, sim_loss, cls_sum_loss)
+        return (lat_loss, cls_embed_loss, sim_loss, cls_optional_loss)
 
 class Imagine(nn.Module):
     def __init__(
@@ -258,8 +239,6 @@ class Imagine(nn.Module):
         open_folder = True,
         seed = None,
         torch_deterministic = False,
-        max_classes = None,
-        class_temperature = 2.,
         save_date_time = False,
         save_best = False,
         experimental_resample = False,
@@ -267,8 +246,8 @@ class Imagine(nn.Module):
         num_cutouts = 128,
         use_adamp = False,
         scale_loss = (1.,1.,1.,0.),
-        class_mean = -3.9,
-        class_std = 0.3,
+        class_mean = 0.,
+        class_std = 10.,
     ):
         super().__init__()
 
@@ -289,8 +268,6 @@ class Imagine(nn.Module):
         model = BigSleep(
             image_size = image_size,
             bilinear = bilinear,
-            max_classes = max_classes,
-            class_temperature = class_temperature,
             experimental_resample = experimental_resample,
             num_cutouts = num_cutouts,
             class_mean = class_mean,

@@ -265,7 +265,7 @@ def get_file_extension(path, dot=True, lower=True):
     return ext.lower() if lower else ext
 
 class BigGANConfig(object):
-    """ Configuration class to store the configuration of a `BigGAN`. 
+    """ Configuration class to store the configuration of a `BigGAN`.
         Defaults are for the 128x128 model.
         layers tuple are (up-sample in the layer ?, input channels, output channels)
     """
@@ -569,10 +569,10 @@ class BigGAN(nn.Module):
         self.embeddings = nn.Linear(config.num_classes, config.z_dim, bias=False)
         self.generator = Generator(config)
 
-    def forward(self, z, class_label, truncation):
+    def forward(self, z, embed, truncation):
         assert 0 < truncation <= 1
 
-        embed = self.embeddings(class_label)
+        #embed = self.embeddings(class_label)
         cond_vector = torch.cat((z, embed), dim=1)
 
         z = self.generator(cond_vector, truncation)
