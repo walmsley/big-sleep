@@ -215,7 +215,7 @@ class BigSleep(nn.Module):
 
             lat_loss = lat_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
 
-        cls_embed_loss = torch.abs(10. - torch.std(cls_embeds, dim=1)).mean() + \
+        cls_embed_loss = torch.abs(.66 - torch.std(cls_embeds, dim=1)).mean() + \
                         torch.abs(torch.mean(cls_embeds, dim = 1)).mean()
 
         cls_optional_loss = 4 * torch.max(torch.square(cls_embeds).mean(), latent_thres)
