@@ -120,14 +120,17 @@ class BigSleep(nn.Module):
     def __init__(
         self,
         num_cutouts = 16,
-        loss_coef = 100,
+        loss_coefs = None,
         image_size = 256,
         bilinear = False,
         experimental_resample = False,
         init_fname = None,
     ):
         super().__init__()
-        self.loss_coef = loss_coef
+        if loss_coefs is None:
+            self.loss_coefs = (100, 0.02, 10., 50., 0.1)
+        else:
+            self.loss_coefs = loss_coefs
         self.image_size = image_size
         self.num_cutouts = num_cutouts
         self.experimental_resample = experimental_resample
@@ -171,13 +174,13 @@ class BigSleep(nn.Module):
         num_latents = latents.shape[0]
         latents_reshaped = latents.reshape((8192,32,32))
         ones_32 = torch.ones((32,32)).cuda()
-        img_brightness = torch.mean(out, dim=(0,1))
-        print(img_brightness)
+        ones_256 = torch.ones((256,256)).cuda()
+        img_grayscale = torch.mean(out, dim=(0,1))
 
         lat_loss = 0.02 * torch.abs(1024. - torch.sum(latents))
         lat_loss_2 = 10. * torch.mean(torch.abs(latents_reshaped.sum(dim=0) - ones_32))
         lat_loss_3 = 50. * torch.sum(torch.abs(latents_reshaped.max(dim=0)[0] - ones_32))
-        lat_loss_4 = 0.1 * torch.sum(torch.gt(img_brightness,ones_32-0.1))
+        lat_loss_4 = 0.1 * torch.sum(torch.gt(img_grayscale,ones_256-0.1))
 
         print('losses', lat_loss.item(), lat_loss_2.item(), lat_loss_3.item())
 
@@ -185,7 +188,7 @@ class BigSleep(nn.Module):
         #             torch.abs(torch.mean(latents, dim = 1)).mean() + \
         #             4 * torch.max(torch.square(latents).mean(), latent_thres)
 
-        sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
+        sim_loss = -self.loss_coefs[0] * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
         return (lat_loss+lat_loss_2+lat_loss_3+lat_loss_4, sim_loss)
 
 class Imagine(nn.Module):
@@ -208,7 +211,7 @@ class Imagine(nn.Module):
         save_best = False,
         experimental_resample = False,
         init_fname = None,
-        loss_coef = 100,
+        loss_coefs = None,
     ):
         super().__init__()
 
@@ -231,7 +234,7 @@ class Imagine(nn.Module):
             bilinear = bilinear,
             experimental_resample = experimental_resample,
             init_fname = init_fname,
-            loss_coef = loss_coef,
+            loss_coefs = loss_coefs,
         ).cuda()
 
         self.model = model
