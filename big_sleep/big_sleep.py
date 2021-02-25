@@ -169,17 +169,21 @@ class BigSleep(nn.Module):
 
         latents = self.model.latents()
         num_latents = latents.shape[0]
+        latents_reshaped = latents.reshape((8192,32,32))
+        ones_32 = torch.ones((32,32)).cuda()
 
-        lat_loss = 0.1 * torch.abs(1024. - torch.sum(latents))
-        lat_loss_2 = 4 * torch.mean(torch.abs(latents.reshape((8192,32,32)).sum(dim=0) - torch.ones((32,32)).cuda()))
-        print('losses', lat_loss, lat_loss_2)
+        lat_loss = 0.02 * torch.abs(1024. - torch.sum(latents))
+        lat_loss_2 = 10. * torch.mean(torch.abs(latents_reshaped.sum(dim=0) - ones_32))
+        lat_loss_3 = 5. * torch.mean(torch.abs(latents_reshaped.max(dim=0) - ones_32))
+
+        print('losses', lat_loss.item(), lat_loss_2.item(), lat_loss_3.item())
 
         # lat_loss =  torch.abs(1 - torch.std(latents, dim=1)).mean() + \
         #             torch.abs(torch.mean(latents, dim = 1)).mean() + \
         #             4 * torch.max(torch.square(latents).mean(), latent_thres)
 
         sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
-        return (lat_loss+lat_loss_2, sim_loss)
+        return (lat_loss+lat_loss_2+lat_loss_3, sim_loss)
 
 class Imagine(nn.Module):
     def __init__(
