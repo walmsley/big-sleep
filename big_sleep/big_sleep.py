@@ -75,7 +75,7 @@ perceptor, preprocess = load()
 class Latents(torch.nn.Module):
     def __init__(
         self,
-        z_dim = 8388608,
+        z_dim = 8192*32*32,
         init_fname = None,
     ):
         super().__init__()
@@ -102,7 +102,7 @@ class Model(nn.Module):
         self.init_latents()
 
     def init_latents(self):
-        self.latents = Latents(self.init_fname)
+        self.latents = Latents(init_fname=self.init_fname)
 
     def forward(self):
         #self.biggan.eval()
