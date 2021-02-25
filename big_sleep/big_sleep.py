@@ -98,7 +98,7 @@ class Model(nn.Module):
         #self.biggan.eval()
         #out = self.biggan(*self.latents(), 1)
         #return (out + 1) / 2
-        reshaped_z = torch.reshape(z, (1,8192,32,32))
+        reshaped_z = torch.reshape(self.latents(), (1,8192,32,32))
         x_stats = self.dall_e_decoder(reshaped_z).float()
         x_rec = torch.clamp((torch.sigmoid(x_stats[:, :3]) - 0.1) / (1 - 2 * 0.1), 0, 1) #from unmap_pixels function
         return x_rec
