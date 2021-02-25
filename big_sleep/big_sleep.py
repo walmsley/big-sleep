@@ -75,11 +75,11 @@ perceptor, preprocess = load()
 class Latents(torch.nn.Module):
     def __init__(
         self,
-        z_dim = 8192*32*32,
-        init_fname = None
+        z_dim = 8388608,
+        init_fname = None,
     ):
         super().__init__()
-        self.vec = torch.nn.Parameter(torch.zeros(z_dim)) #TODO init these
+        self.vec = torch.nn.Parameter(torch.zeros(z_dim))
 
         if init_fname is not None:
             data = torch.load(open(init_fname,'rb'), map_location='cuda:0')
