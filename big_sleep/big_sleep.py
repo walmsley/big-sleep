@@ -174,7 +174,7 @@ class BigSleep(nn.Module):
 
         lat_loss = 0.02 * torch.abs(1024. - torch.sum(latents))
         lat_loss_2 = 10. * torch.mean(torch.abs(latents_reshaped.sum(dim=0) - ones_32))
-        lat_loss_3 = torch.sum(torch.abs(latents_reshaped.max(dim=0)[0] - ones_32))
+        lat_loss_3 = 50. * torch.sum(torch.abs(latents_reshaped.max(dim=0)[0] - ones_32))
 
         print('losses', lat_loss.item(), lat_loss_2.item(), lat_loss_3.item())
 
@@ -205,6 +205,7 @@ class Imagine(nn.Module):
         save_best = False,
         experimental_resample = False,
         init_fname = None,
+        loss_coef = 100,
     ):
         super().__init__()
 
@@ -227,6 +228,7 @@ class Imagine(nn.Module):
             bilinear = bilinear,
             experimental_resample = experimental_resample,
             init_fname = init_fname,
+            loss_coef = loss_coef,
         ).cuda()
 
         self.model = model
