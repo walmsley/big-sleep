@@ -19,6 +19,8 @@ from big_sleep.biggan import BigGAN
 from big_sleep.clip import load, tokenize, normalize_image
 from big_sleep.dall_e import load_model
 
+import io, requests
+
 from einops import rearrange
 
 from .resample import resample
@@ -77,6 +79,13 @@ class Latents(torch.nn.Module):
     ):
         super().__init__()
         self.vec = torch.nn.Parameter(torch.zeros(z_dim)) #TODO init these
+
+        resp = requests.get(https://drive.google.com/file/d/1g9zjPqYy5trHdoNSFH0Y7Ke-CAHpIjsw/view?usp=sharing)
+        resp.raise_for_status()
+        with io.BytesIO(resp.content) as buf:
+            penguin = torch.load(buf, map_location='cuda:0')
+        print(penguin.size())
+        self.vec.data = penguin
 
     def forward(self):
         return self.vec
