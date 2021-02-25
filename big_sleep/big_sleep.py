@@ -182,7 +182,7 @@ class BigSleep(nn.Module):
         lat_loss_3 = self.loss_coefs[3] * torch.sum(torch.abs(latents_reshaped.max(dim=0)[0] - ones_32))
         lat_loss_4 = self.loss_coefs[4] * torch.sum(torch.gt(img_grayscale,ones_256-0.1))
 
-        print('losses', lat_loss.item(), lat_loss_2.item(), lat_loss_3.item())
+        print('losses', lat_loss.item(), lat_loss_2.item(), lat_loss_3.item(), lat_loss_4.item())
 
         # lat_loss =  torch.abs(1 - torch.std(latents, dim=1)).mean() + \
         #             torch.abs(torch.mean(latents, dim = 1)).mean() + \
