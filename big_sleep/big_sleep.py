@@ -17,6 +17,7 @@ from collections import namedtuple
 
 from big_sleep.biggan import BigGAN
 from big_sleep.clip import load, tokenize, normalize_image
+from big_sleep.dall_e import load_model
 
 from einops import rearrange
 
@@ -63,95 +64,54 @@ def open_folder(path):
     except OSError:
         pass
 
-# tensor helpers
-
-def differentiable_topk(x, k, temperature=1.):
-    n, dim = x.shape
-    topk_tensors = []
-
-    for i in range(k):
-        is_last = i == (k - 1)
-        values, indices = (x / temperature).softmax(dim=-1).topk(1, dim=-1)
-        topks = torch.zeros_like(x).scatter_(-1, indices, values)
-        topk_tensors.append(topks)
-        if not is_last:
-            x = x.scatter(-1, indices, float('-inf'))
-
-    topks = torch.cat(topk_tensors, dim=-1)
-    return topks.reshape(n, k, dim).sum(dim = 1)
-
 # load clip
 
 perceptor, preprocess = load()
 
-# load biggan
+# load dall_e
 
 class Latents(torch.nn.Module):
     def __init__(
         self,
-        num_latents = 15,
-        num_classes = 1000,
-        z_dim = 128,
-        max_classes = None,
-        class_temperature = 2.
+        z_dim = 8192*32*32,
     ):
         super().__init__()
-        self.normu = torch.nn.Parameter(torch.zeros(num_latents, z_dim).normal_(std = 1))
-        self.cls = torch.nn.Parameter(torch.zeros(num_latents, num_classes).normal_(mean = -3.9, std = .3))
-        self.register_buffer('thresh_lat', torch.tensor(1))
-
-        assert not exists(max_classes) or max_classes > 0 and max_classes <= num_classes, f'max_classes must be between 0 and {num_classes}'
-        self.max_classes = max_classes
-        self.class_temperature = class_temperature
+        self.vec = torch.nn.Parameter(torch.zeros(z_dim)) #TODO init these
 
     def forward(self):
-        if exists(self.max_classes):
-            classes = differentiable_topk(self.cls, self.max_classes, temperature = self.class_temperature)
-        else:
-            classes = torch.sigmoid(self.cls)
-
-        return self.normu, classes
+        return self.vec
 
 class Model(nn.Module):
     def __init__(
         self,
         image_size,
-        max_classes = None,
-        class_temperature = 2.
     ):
         super().__init__()
-        assert image_size in (128, 256, 512), 'image size must be one of 128, 256, or 512'
-        self.biggan = BigGAN.from_pretrained(f'biggan-deep-{image_size}')
-
-        self.max_classes = max_classes
-        self.class_temperature = class_temperature
+        assert image_size in (256), 'image size must be 256'
+        self.dall_e_decoder = load_model("https://cdn.openai.com/dall-e/decoder.pkl", dev=torch.device('cuda:0'))
         self.init_latents()
 
     def init_latents(self):
-        self.latents = Latents(
-            num_latents = len(self.biggan.config.layers) + 1,
-            num_classes = self.biggan.config.num_classes,
-            z_dim = self.biggan.config.z_dim,
-            max_classes = self.max_classes,
-            class_temperature = self.class_temperature
-        )
+        self.latents = Latents()
 
     def forward(self):
-        self.biggan.eval()
-        out = self.biggan(*self.latents(), 1)
-        return (out + 1) / 2
+        #self.biggan.eval()
+        #out = self.biggan(*self.latents(), 1)
+        #return (out + 1) / 2
+        reshaped_z = torch.reshape(z, (1,8192,32,32))
+        x_stats = self.dall_e_decoder(reshaped_z).float()
+        x_rec = torch.clamp((torch.sigmoid(x_stats[:, :3]) - 0.1) / (1 - 2 * 0.1), 0, 1) #from unmap_pixels function
+        return x_rec
 
 # load siren
 
 class BigSleep(nn.Module):
     def __init__(
         self,
-        num_cutouts = 128,
+        num_cutouts = 16,
         loss_coef = 100,
-        image_size = 512,
+        image_size = 256,
         bilinear = False,
-        max_classes = None,
-        class_temperature = 2.,
         experimental_resample = False,
     ):
         super().__init__()
@@ -164,8 +124,6 @@ class BigSleep(nn.Module):
 
         self.model = Model(
             image_size = image_size,
-            max_classes = max_classes,
-            class_temperature = class_temperature
         )
 
     def reset(self):
@@ -181,7 +139,7 @@ class BigSleep(nn.Module):
 
         pieces = []
         for ch in range(num_cutouts):
-            size = int(width * torch.zeros(1,).normal_(mean=.8, std=.3).clip(.5, .95))
+            size = int(width * torch.zeros(1,).normal_(mean=.925, std=.1).clip(.875, .995))
             offsetx = torch.randint(0, width - size, ())
             offsety = torch.randint(0, width - size, ())
             apper = out[:, :, offsetx:offsetx + size, offsety:offsety + size]
@@ -196,29 +154,17 @@ class BigSleep(nn.Module):
 
         image_embed = perceptor.encode_image(into)
 
-        latents, soft_one_hot_classes = self.model.latents()
+        latents = self.model.latents()
         num_latents = latents.shape[0]
-        latent_thres = self.model.latents.thresh_lat
 
-        lat_loss =  torch.abs(1 - torch.std(latents, dim=1)).mean() + \
-                    torch.abs(torch.mean(latents, dim = 1)).mean() + \
-                    4 * torch.max(torch.square(latents).mean(), latent_thres)
+        lat_loss = 0.1 * torch.abs(1024. - torch.sum(latents)) #TODO add more
 
-        for array in latents:
-            mean = torch.mean(array)
-            diffs = array - mean
-            var = torch.mean(torch.pow(diffs, 2.0))
-            std = torch.pow(var, 0.5)
-            zscores = diffs / std
-            skews = torch.mean(torch.pow(zscores, 3.0))
-            kurtoses = torch.mean(torch.pow(zscores, 4.0)) - 3.0
-
-            lat_loss = lat_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
-
-        cls_loss = ((50 * torch.topk(soft_one_hot_classes, largest = False, dim = 1, k = 999)[0]) ** 2).mean()
+        # lat_loss =  torch.abs(1 - torch.std(latents, dim=1)).mean() + \
+        #             torch.abs(torch.mean(latents, dim = 1)).mean() + \
+        #             4 * torch.max(torch.square(latents).mean(), latent_thres)
 
         sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
-        return (lat_loss, cls_loss, sim_loss)
+        return (lat_loss, sim_loss)
 
 class Imagine(nn.Module):
     def __init__(
@@ -226,7 +172,7 @@ class Imagine(nn.Module):
         text,
         *,
         lr = .07,
-        image_size = 512,
+        image_size = 256,
         gradient_accumulate_every = 1,
         save_every = 50,
         epochs = 20,
@@ -236,8 +182,6 @@ class Imagine(nn.Module):
         open_folder = True,
         seed = None,
         torch_deterministic = False,
-        max_classes = None,
-        class_temperature = 2.,
         save_date_time = False,
         save_best = False,
         experimental_resample = False,
@@ -261,8 +205,6 @@ class Imagine(nn.Module):
         model = BigSleep(
             image_size = image_size,
             bilinear = bilinear,
-            max_classes = max_classes,
-            class_temperature = class_temperature,
             experimental_resample = experimental_resample,
         ).cuda()
 
@@ -314,15 +256,15 @@ class Imagine(nn.Module):
 
         if (i + 1) % self.save_every == 0:
             with torch.no_grad():
-                top_score, best = torch.topk(losses[2], k = 1, largest = False)
-                image = self.model.model()[best].cpu()
+                top_score = losses[1]
+                image = self.model.model()[0].cpu()
 
                 save_image(image, str(self.filename))
                 if pbar is not None:
                     pbar.update(1)
                 else:
                     print(f'image updated at "./{str(self.filename)}"')
-                    
+
 
                 if self.save_progress:
                     total_iterations = epoch * self.iterations + i
