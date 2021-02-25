@@ -84,7 +84,8 @@ class Latents(torch.nn.Module):
         if init_fname is not None:
             data = torch.load(open(init_fname,'rb'), map_location='cuda:0')
             print(f'loaded data of size {data.size()}')
-            self.vec.data = data
+            with torch.no_grad():
+                self.vec.copy_(data)
 
     def forward(self):
         return self.vec
@@ -170,6 +171,7 @@ class BigSleep(nn.Module):
         num_latents = latents.shape[0]
 
         lat_loss = 0.1 * torch.abs(1024. - torch.sum(latents)) #TODO add more
+        print('loss sum', torch.sum(latents))
 
         # lat_loss =  torch.abs(1 - torch.std(latents, dim=1)).mean() + \
         #             torch.abs(torch.mean(latents, dim = 1)).mean() + \
