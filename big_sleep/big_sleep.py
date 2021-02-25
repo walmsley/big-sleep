@@ -87,7 +87,7 @@ class Model(nn.Module):
         image_size,
     ):
         super().__init__()
-        assert image_size in (256), 'image size must be 256'
+        assert image_size == 256, 'image size must be 256'
         self.dall_e_decoder = load_model("https://cdn.openai.com/dall-e/decoder.pkl", dev=torch.device('cuda:0'))
         self.init_latents()
 
