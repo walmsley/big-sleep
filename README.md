@@ -1,3 +1,80 @@
+Some current rough notebook code, to be put in a colab and used similar to original BigSleep:
+
+```
+import subprocess
+
+CUDA_version = [s for s in subprocess.check_output(["nvcc", "--version"]).decode("UTF-8").split(", ") if s.startswith("release")][0].split(" ")[-1]
+print("CUDA version:", CUDA_version)
+
+if CUDA_version == "10.0":
+    torch_version_suffix = "+cu100"
+elif CUDA_version == "10.1":
+    torch_version_suffix = "+cu101"
+elif CUDA_version == "10.2":
+    torch_version_suffix = ""
+else:
+    torch_version_suffix = "+cu110"
+
+! pip install torch==1.7.1{torch_version_suffix} torchvision==0.8.2{torch_version_suffix} -f https://download.pytorch.org/whl/torch_stable.html ftfy regex
+
+!pip install git+https://github.com/walmsley/big-sleep.git@dalle --upgrade
+
+pip install git+https://github.com/openai/DALL-E.git
+
+from tqdm import trange
+from IPython.display import Image, display
+import torch
+
+from big_sleep import Imagine
+from google.colab import files
+import numpy as np
+
+indices = torch.randint(0,8192, (32,32))
+out = torch.zeros((8192,32,32))
+for i in range(32):
+    for j in range(32):
+        out[indices[i,j],i,j] = 1.0
+out = torch.reshape(out, (8192*32*32,))
+torch.save(out, 'rand.pth')
+
+TEXT = "a photo of spiderman delivering a pizza" #@param {type:"string"}
+TEXT = TEXT.replace('_',' ')
+SAVE_EVERY =  25#@param {type:"number"}
+LEARNING_RATE = 4e-5 #@param {type:"number"}
+ITERATIONS = 101 #@param {type:"number"}
+NUM_CUTOUTS = 4#@param {type: "number"}
+SEND_TO_DRIVE = False#@param {type: "boolean"}
+NUM_ATTEMPTS = 1#@param {type: "number"}
+SAVE_IMGS = True
+
+for attempt in range(NUM_ATTEMPTS):
+
+    model = Imagine(
+        text = TEXT,
+        save_every = SAVE_EVERY,
+        lr = LEARNING_RATE,
+        iterations = ITERATIONS,
+        save_progress = SAVE_IMGS,
+        save_best = SAVE_IMGS,
+        torch_deterministic = True,
+        init_fname = 'rand.pth',
+        loss_coefs = (100, 0.02, 10., 50., 0.),
+    )
+
+    for i in trange(ITERATIONS, desc = 'iteration', position=0, leave=True, mininterval=1.0):
+        model.train_step(0, i)
+
+        if i % max(model.save_every, 10) != 0:
+           continue
+        if i == 0:
+            continue
+
+        image = Image(f"./{TEXT.replace(' ', '_')}.png")
+        print(f'\n{TEXT} {i}')
+        display(image)
+```
+
+
 <img src="./samples/artificial_intelligence.png" width="250px"></img>
 
 *artificial intelligence*
