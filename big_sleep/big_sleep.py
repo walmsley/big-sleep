@@ -76,16 +76,15 @@ class Latents(torch.nn.Module):
     def __init__(
         self,
         z_dim = 8192*32*32,
+        init_fname = None
     ):
         super().__init__()
         self.vec = torch.nn.Parameter(torch.zeros(z_dim)) #TODO init these
 
-        resp = requests.get(https://drive.google.com/file/d/1g9zjPqYy5trHdoNSFH0Y7Ke-CAHpIjsw/view?usp=sharing)
-        resp.raise_for_status()
-        with io.BytesIO(resp.content) as buf:
-            penguin = torch.load(buf, map_location='cuda:0')
-        print(penguin.size())
-        self.vec.data = penguin
+        if init_fname is not None:
+            data = torch.load(open(init_fname,'rb'), map_location='cuda:0')
+            print(f'loaded data of size {data.size()}')
+            self.vec.data = data
 
     def forward(self):
         return self.vec
@@ -94,14 +93,16 @@ class Model(nn.Module):
     def __init__(
         self,
         image_size,
+        init_fname,
     ):
         super().__init__()
         assert image_size == 256, 'image size must be 256'
         self.dall_e_decoder = load_model("https://cdn.openai.com/dall-e/decoder.pkl", device=torch.device('cuda:0'))
-        self.init_latents()
+        self.init_fname = init_fname
+        self.init_latents(self.init_fname)
 
     def init_latents(self):
-        self.latents = Latents()
+        self.latents = Latents(self.init_fname)
 
     def forward(self):
         #self.biggan.eval()
@@ -122,6 +123,7 @@ class BigSleep(nn.Module):
         image_size = 256,
         bilinear = False,
         experimental_resample = False,
+        init_fname = None,
     ):
         super().__init__()
         self.loss_coef = loss_coef
@@ -133,6 +135,7 @@ class BigSleep(nn.Module):
 
         self.model = Model(
             image_size = image_size,
+            init_fname = init_fname,
         )
 
     def reset(self):
@@ -194,6 +197,7 @@ class Imagine(nn.Module):
         save_date_time = False,
         save_best = False,
         experimental_resample = False,
+        init_fname = None,
     ):
         super().__init__()
 
@@ -215,6 +219,7 @@ class Imagine(nn.Module):
             image_size = image_size,
             bilinear = bilinear,
             experimental_resample = experimental_resample,
+            init_fname = init_fname,
         ).cuda()
 
         self.model = model
