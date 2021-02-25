@@ -171,10 +171,13 @@ class BigSleep(nn.Module):
         num_latents = latents.shape[0]
         latents_reshaped = latents.reshape((8192,32,32))
         ones_32 = torch.ones((32,32)).cuda()
+        img_brightness = torch.mean(out, dim=(0,1))
+        print(img_brightness)
 
         lat_loss = 0.02 * torch.abs(1024. - torch.sum(latents))
         lat_loss_2 = 10. * torch.mean(torch.abs(latents_reshaped.sum(dim=0) - ones_32))
         lat_loss_3 = 50. * torch.sum(torch.abs(latents_reshaped.max(dim=0)[0] - ones_32))
+        #lat_loss_4 = np.sum()
 
         print('losses', lat_loss.item(), lat_loss_2.item(), lat_loss_3.item())
 
