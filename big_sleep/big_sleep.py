@@ -177,7 +177,7 @@ class BigSleep(nn.Module):
         lat_loss = 0.02 * torch.abs(1024. - torch.sum(latents))
         lat_loss_2 = 10. * torch.mean(torch.abs(latents_reshaped.sum(dim=0) - ones_32))
         lat_loss_3 = 50. * torch.sum(torch.abs(latents_reshaped.max(dim=0)[0] - ones_32))
-        #lat_loss_4 = np.sum()
+        lat_loss_4 = 0.1 * np.sum(torch.gt(img_brightness,ones_32-0.1))
 
         print('losses', lat_loss.item(), lat_loss_2.item(), lat_loss_3.item())
 
@@ -186,7 +186,7 @@ class BigSleep(nn.Module):
         #             4 * torch.max(torch.square(latents).mean(), latent_thres)
 
         sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
-        return (lat_loss+lat_loss_2+lat_loss_3, sim_loss)
+        return (lat_loss+lat_loss_2+lat_loss_3+lat_loss_4, sim_loss)
 
 class Imagine(nn.Module):
     def __init__(
