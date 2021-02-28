@@ -114,7 +114,7 @@ class Latents(torch.nn.Module):
         # Then, we prepared a single matrix that acts like an inverse pca transform.
         # We premultiplied in singular values to properly unwhiten our new input data with a single resulting matrix.
         # `biggan_pca = np.multiply(np.tile(np.expand_dims(pca.singular_values_/np.sqrt(1000), axis=-1),(1,128)), pca.components_)`
-        return torch.load(Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data/biggan_pca.pt")).open())
+        return torch.load(Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data/biggan_pca.pt")).open(mode='rb'))
 
     def forward(self):
         cls_embed = torch.matmul(self.cls_white, self.cls_unwhiten_transform)
