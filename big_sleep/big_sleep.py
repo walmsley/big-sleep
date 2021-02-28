@@ -101,6 +101,7 @@ class Latents(torch.nn.Module):
         self.cls_white = torch.nn.Parameter(torch.zeros(num_latents, cls_embed_dim).normal_(mean = 0.0, std = 1.0))
         self.cls_unwhiten_transform = self.init_from_pca_data()
         print('loaded pca data:', self.cls_unwhiten_transform)
+        self.register_buffer('thresh_lat', torch.tensor(1))
 
     def init_from_pca_data(self):
         # Note: this transform has been precomputed as follows:
