@@ -569,8 +569,10 @@ class BigGAN(nn.Module):
         self.embeddings = nn.Linear(config.num_classes, config.z_dim, bias=False)
         self.generator = Generator(config)
 
-    def forward(self, z, embed, truncation):
+    def forward(self, z, cls_white, embed, truncation):
         assert 0 < truncation <= 1
+
+        #note: we intentionally don't use cls_white
 
         #embed = self.embeddings(class_label)
         cond_vector = torch.cat((z, embed), dim=1)

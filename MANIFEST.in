@@ -1,1 +1,3 @@
 recursive-include big_sleep *.txt
+recursive-include big_sleep *.pt
+

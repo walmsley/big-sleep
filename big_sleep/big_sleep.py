@@ -98,11 +98,27 @@ class Latents(torch.nn.Module):
     ):
         super().__init__()
         self.normu = torch.nn.Parameter(torch.zeros(num_latents, z_dim).normal_(std = 1))
-        self.cls_embed = torch.nn.Parameter(torch.zeros(num_latents, cls_embed_dim).normal_(mean = class_mean, std = class_std))
-        self.register_buffer('thresh_lat', torch.tensor(1))
+        self.cls_white = torch.nn.Parameter(torch.zeros(num_latents, cls_embed_dim).normal_(mean = 0.0, std = 1.0))
+        self.cls_unwhiten_transform = self.init_from_pca_data()
+        print('loaded pca data:', self.cls_pca_transform)
+
+    def init_from_pca_data():
+        # Note: this transform has been precomputed as follows:
+        #  First, pca was computed on 1000 sample cls embeddings using:
+        # ```
+        #  W = model.model.model.biggan.embeddings.weight.cpu().detach().numpy()
+        #  from sklearn.decomposition import PCA
+        #  pca = PCA()
+        #  pca.fit(W.T)
+        # ```
+        # Then, we prepared a single matrix that acts like an inverse pca transform.
+        # We premultiplied in singular values to properly unwhiten our new input data with a single resulting matrix.
+        # `biggan_pca = np.multiply(np.tile(np.expand_dims(pca.singular_values_/np.sqrt(1000), axis=-1),(1,128)), pca.components_)`
+        return torch.load(Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data/biggan_pca.pt")).open())
 
     def forward(self):
-        return self.normu, self.cls_embed
+        cls_embed = torch.matmul(self.cls_white, self.cls_unwhiten_transform)
+        return self.normu, self.cls_white, cls_embed
 
 class Model(nn.Module):
     def __init__(
@@ -196,7 +212,7 @@ class BigSleep(nn.Module):
 
         image_embed = perceptor.encode_image(into)
 
-        latents, cls_embeds = self.model.latents()
+        latents, cls_white, cls_embed = self.model.latents()
         num_latents = latents.shape[0]
         latent_thres = self.model.latents.thresh_lat
 
@@ -215,13 +231,25 @@ class BigSleep(nn.Module):
 
             lat_loss = lat_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
 
-        cls_embed_loss = torch.abs(.067 - torch.std(cls_embeds, dim=1)).mean() + \
-                        torch.abs(torch.mean(cls_embeds, dim = 1)).mean()
+        cls_white_loss =  torch.abs(1 - torch.std(cls_white, dim=1)).mean() + \
+                    torch.abs(torch.mean(cls_white, dim = 1)).mean() + \
+                    4 * torch.max(torch.square(cls_white).mean(), latent_thres)
 
-        cls_optional_loss = 4 * torch.max(torch.square(cls_embeds).mean(), latent_thres)
+        for array in cls_white:
+            mean = torch.mean(array)
+            diffs = array - mean
+            var = torch.mean(torch.pow(diffs, 2.0))
+            std = torch.pow(var, 0.5)
+            zscores = diffs / std
+            skews = torch.mean(torch.pow(zscores, 3.0))
+            kurtoses = torch.mean(torch.pow(zscores, 4.0)) - 3.0
+
+            cls_white_loss = cls_white_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
+
+
 
         sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
-        return (lat_loss, cls_embed_loss, sim_loss, cls_optional_loss)
+        return (lat_loss, cls_white_loss, sim_loss, 0.0)
 
 class Imagine(nn.Module):
     def __init__(
