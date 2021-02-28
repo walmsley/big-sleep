@@ -102,7 +102,7 @@ class Latents(torch.nn.Module):
         self.cls_unwhiten_transform = self.init_from_pca_data()
         print('loaded pca data:', self.cls_pca_transform)
 
-    def init_from_pca_data():
+    def init_from_pca_data(self):
         # Note: this transform has been precomputed as follows:
         #  First, pca was computed on 1000 sample cls embeddings using:
         # ```
