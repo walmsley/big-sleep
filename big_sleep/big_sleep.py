@@ -100,7 +100,7 @@ class Latents(torch.nn.Module):
         self.normu = torch.nn.Parameter(torch.zeros(num_latents, z_dim).normal_(std = 1))
         self.cls_white = torch.nn.Parameter(torch.zeros(num_latents, cls_embed_dim).normal_(mean = 0.0, std = 1.0))
         self.cls_unwhiten_transform = self.init_from_pca_data()
-        print('loaded pca data:', self.cls_unwhiten_transform)
+        #print('loaded pca data:', self.cls_unwhiten_transform)
         self.register_buffer('thresh_lat', torch.tensor(1))
 
     def init_from_pca_data(self):
@@ -119,8 +119,6 @@ class Latents(torch.nn.Module):
 
     def forward(self):
         cls_embed = torch.matmul(self.cls_white, self.cls_unwhiten_transform)
-        with torch.no_grad():
-            print('testing no change', self.cls_unwhiten_transform)
         return self.normu, self.cls_white, cls_embed
 
 class Model(nn.Module):
