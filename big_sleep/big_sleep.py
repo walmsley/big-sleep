@@ -247,10 +247,8 @@ class BigSleep(nn.Module):
 
             cls_white_loss = cls_white_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
 
-
-
         sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
-        return (lat_loss, cls_white_loss, sim_loss, 0.0)
+        return (lat_loss, cls_white_loss, sim_loss)
 
 class Imagine(nn.Module):
     def __init__(
@@ -274,7 +272,7 @@ class Imagine(nn.Module):
         textpath = None,
         num_cutouts = 128,
         use_adamp = False,
-        scale_loss = (1.,1.,1.,0.),
+        scale_loss = (1.,1.,1.),
         class_mean = 0.,
         class_std = 10.,
     ):
