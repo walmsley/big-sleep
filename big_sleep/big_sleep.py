@@ -119,6 +119,8 @@ class Latents(torch.nn.Module):
 
     def forward(self):
         cls_embed = torch.matmul(self.cls_white, self.cls_unwhiten_transform)
+        with torch.no_grad():
+            print('testing no change', self.cls_unwhiten_transform)
         return self.normu, self.cls_white, cls_embed
 
 class Model(nn.Module):
