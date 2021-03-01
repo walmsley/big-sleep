@@ -120,10 +120,10 @@ class Latents(torch.nn.Module):
         return torch.load(Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data/biggan_pca.pt")).open(mode='rb'))
 
     def forward(self):
-        self.normu = torch.clip(self.normu, -self.clamp_lim_normu, self.clamp_lim_normu)
-        self.cls_white = torch.clip(self.cls_white, -self.clamp_lim_cls, self.clamp_lim_cls)
-        cls_embed = torch.matmul(self.cls_white, self.cls_unwhiten_transform)
-        return self.normu, self.cls_white, cls_embed
+        normu_clipped = torch.clip(self.normu, -self.clamp_lim_normu, self.clamp_lim_normu)
+        cls_white_clipped = torch.clip(self.cls_white, -self.clamp_lim_cls, self.clamp_lim_cls)
+        cls_embed = torch.matmul(cls_white_clipped, self.cls_unwhiten_transform)
+        return normu_clipped, cls_white_clipped, cls_embed
 
 class Model(nn.Module):
     def __init__(
