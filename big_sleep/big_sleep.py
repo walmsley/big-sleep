@@ -93,14 +93,15 @@ class Latents(torch.nn.Module):
         num_latents = 15,
         cls_embed_dim = 128,
         z_dim = 128,
-        class_mean = 0.,
-        class_std = 10.,
+        clamp_lim_cls = 10.,
+        clamp_lim_normu = 10.,
     ):
         super().__init__()
         self.normu = torch.nn.Parameter(torch.zeros(num_latents, z_dim).normal_(std = 1))
         self.cls_white = torch.nn.Parameter(torch.zeros(num_latents, cls_embed_dim).normal_(mean = 0.0, std = 1.0))
         self.cls_unwhiten_transform = self.init_from_pca_data()
         #print('loaded pca data:', self.cls_unwhiten_transform)
+        self.clamp_lim_normu = clamp_lim_normu
         self.register_buffer('thresh_lat', torch.tensor(1))
 
     def init_from_pca_data(self):
@@ -118,6 +119,8 @@ class Latents(torch.nn.Module):
         return torch.load(Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data/biggan_pca.pt")).open(mode='rb'))
 
     def forward(self):
+        self.normu = torch.clip(self.normu, -self.clamp_lim_normu, self.clamp_lim_normu))
+        self.cls_white = torch.clip(self.cls_white, -self.clamp_lim_normu, self.clamp_lim_normu))
         cls_embed = torch.matmul(self.cls_white, self.cls_unwhiten_transform)
         return self.normu, self.cls_white, cls_embed
 
@@ -125,15 +128,15 @@ class Model(nn.Module):
     def __init__(
         self,
         image_size,
-        class_mean = 0.,
-        class_std = 10.,
+        clamp_lim_cls = 10.,
+        clamp_lim_normu = 10.,
     ):
         super().__init__()
         assert image_size in (128, 256, 512), 'image size must be one of 128, 256, or 512'
         self.biggan = BigGAN.from_pretrained(f'biggan-deep-{image_size}')
 
-        self.class_mean = class_mean
-        self.class_std = class_std
+        self.clamp_lim_cls = clamp_lim_cls
+        self.clamp_lim_normu = clamp_lim_normu
         self.init_latents()
 
     def init_latents(self):
@@ -141,8 +144,8 @@ class Model(nn.Module):
             num_latents = len(self.biggan.config.layers) + 1,
             cls_embed_dim = self.biggan.config.z_dim,
             z_dim = self.biggan.config.class_embed_dim,
-            class_mean = self.class_mean,
-            class_std = self.class_std,
+            clamp_lim_cls = self.clamp_lim_cls,
+            clamp_lim_normu = self.clamp_lim_normu,
         )
 
     def set_latents(self, latents):
@@ -163,8 +166,8 @@ class BigSleep(nn.Module):
         image_size = 512,
         bilinear = False,
         experimental_resample = False,
-        class_mean = 0.,
-        class_std = 10.,
+        clamp_lim_cls = 10.,
+        clamp_lim_normu = 10.,
     ):
         super().__init__()
         self.loss_coef = loss_coef
@@ -176,8 +179,8 @@ class BigSleep(nn.Module):
 
         self.model = Model(
             image_size = image_size,
-            class_mean = class_mean,
-            class_std = class_std,
+            clamp_lim_cls = clamp_lim_cls,
+            clamp_lim_normu = clamp_lim_normu,
         )
 
     def reset(self):
@@ -273,8 +276,8 @@ class Imagine(nn.Module):
         num_cutouts = 128,
         use_adamp = False,
         scale_loss = (1.,1.,1.),
-        class_mean = 0.,
-        class_std = 10.,
+        clamp_lim_cls = 10.,
+        clamp_lim_normu = 10.,
     ):
         super().__init__()
 
@@ -297,8 +300,8 @@ class Imagine(nn.Module):
             bilinear = bilinear,
             experimental_resample = experimental_resample,
             num_cutouts = num_cutouts,
-            class_mean = class_mean,
-            class_std = class_std,
+            clamp_lim_cls = clamp_lim_cls,
+            clamp_lim_normu = clamp_lim_normu,
         ).cuda()
 
         self.model = model
