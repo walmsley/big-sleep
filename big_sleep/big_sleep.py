@@ -102,6 +102,7 @@ class Latents(torch.nn.Module):
         self.cls_unwhiten_transform = self.init_from_pca_data()
         #print('loaded pca data:', self.cls_unwhiten_transform)
         self.clamp_lim_normu = clamp_lim_normu
+        self.clamp_lim_cls = clamp_lim_cls
         self.register_buffer('thresh_lat', torch.tensor(1))
 
     def init_from_pca_data(self):
@@ -119,8 +120,8 @@ class Latents(torch.nn.Module):
         return torch.load(Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data/biggan_pca.pt")).open(mode='rb'))
 
     def forward(self):
-        self.normu = torch.clip(self.normu, -self.clamp_lim_normu, self.clamp_lim_normu))
-        self.cls_white = torch.clip(self.cls_white, -self.clamp_lim_normu, self.clamp_lim_normu))
+        self.normu = torch.clip(self.normu, -self.clamp_lim_normu, self.clamp_lim_normu)
+        self.cls_white = torch.clip(self.cls_white, -self.clamp_lim_cls, self.clamp_lim_cls)
         cls_embed = torch.matmul(self.cls_white, self.cls_unwhiten_transform)
         return self.normu, self.cls_white, cls_embed
 
