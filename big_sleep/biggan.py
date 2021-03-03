@@ -506,8 +506,9 @@ class Generator(nn.Module):
         self.conv_to_rgb = snconv2d(in_channels=ch, out_channels=ch, kernel_size=3, padding=1, eps=config.eps)
         self.tanh = nn.Tanh()
 
-    def forward(self, cond_vector, truncation):
-        z = self.gen_z(cond_vector[0].unsqueeze(0))
+    def forward(self, y, cond_vector, truncation):
+        #z = self.gen_z(cond_vector[0].unsqueeze(0))
+        z = y
 
         # We use this conversion step to be able to use TF weights:
         # TF convention on shape is [batch, height, width, channels]
@@ -515,7 +516,7 @@ class Generator(nn.Module):
         z = z.view(-1, 4, 4, 16 * self.config.channel_width)
         z = z.permute(0, 3, 1, 2).contiguous()
 
-        next_available_latent_index = 1
+        next_available_latent_index = 0
         for layer in self.layers:
             if isinstance(layer, GenBlock):
                 z = layer(z, cond_vector[next_available_latent_index].unsqueeze(0), truncation)
@@ -569,15 +570,15 @@ class BigGAN(nn.Module):
         self.embeddings = nn.Linear(config.num_classes, config.z_dim, bias=False)
         self.generator = Generator(config)
 
-    def forward(self, z, cls_white, embed, truncation):
+    def forward(self, z, cls_white, embed, y_white, y_unwhite, truncation):
         assert 0 < truncation <= 1
 
-        #note: we intentionally don't use cls_white
+        #note: we intentionally don't use cls_white and y_white
 
         #embed = self.embeddings(class_label)
         cond_vector = torch.cat((z, embed), dim=1)
 
-        z = self.generator(cond_vector, truncation)
+        z = self.generator(y_unwhite, cond_vector, truncation)
         return z
 
 def one_hot_from_int(int_or_list, batch_size=1):
