@@ -126,7 +126,7 @@ class Latents(torch.nn.Module):
         normu_clipped = torch.clip(self.normu, -self.clamp_lim_normu, self.clamp_lim_normu)
         cls_white_clipped = torch.clip(self.cls_white, -self.clamp_lim_cls, self.clamp_lim_cls)
         cls_embed = torch.matmul(cls_white_clipped, self.cls_unwhiten_transform)
-        y_unwhite = torch.matmul(self.y_white, self.y_unwhite_transform) + self.y_unwhite_transform_mean 
+        y_unwhite = torch.matmul(self.y_white, self.y_unwhite_transform) + self.y_unwhite_transform_mean
         return normu_clipped, cls_white_clipped, cls_embed, self.y_white, y_unwhite
 
 class Model(nn.Module):
