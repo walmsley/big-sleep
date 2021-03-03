@@ -97,8 +97,9 @@ class Latents(torch.nn.Module):
         clamp_lim_normu = 10.,
     ):
         super().__init__()
-        self.normu = torch.nn.Parameter(torch.zeros(num_latents, z_dim).normal_(std = 1))
-        self.cls_white = torch.nn.Parameter(torch.zeros(num_latents, cls_embed_dim).normal_(mean = 0.0, std = 1.0))
+        self.num_latents = num_latents
+        self.normu = torch.nn.Parameter(torch.zeros(1, z_dim).normal_(std = 1))
+        self.cls_white = torch.nn.Parameter(torch.zeros(1, cls_embed_dim).normal_(mean = 0.0, std = 1.0))
         self.cls_unwhiten_transform = self.init_from_pca_data()
         #print('loaded pca data:', self.cls_unwhiten_transform)
         self.clamp_lim_normu = clamp_lim_normu
@@ -123,7 +124,7 @@ class Latents(torch.nn.Module):
         normu_clipped = torch.clip(self.normu, -self.clamp_lim_normu, self.clamp_lim_normu)
         cls_white_clipped = torch.clip(self.cls_white, -self.clamp_lim_cls, self.clamp_lim_cls)
         cls_embed = torch.matmul(cls_white_clipped, self.cls_unwhiten_transform)
-        return normu_clipped, cls_white_clipped, cls_embed
+        return normu_clipped.repeat(self.num_latents, 1), cls_white_clipped.repeat(self.num_latents, 1), cls_embed.repeat(self.num_latents, 1)
 
 class Model(nn.Module):
     def __init__(
