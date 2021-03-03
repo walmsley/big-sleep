@@ -391,7 +391,7 @@ class Imagine(nn.Module):
         self.optimizer.step()
         self.optimizer.zero_grad()
 
-        if (i + 1) % self.save_every == 0:
+        if i % self.save_every == 0:
             with torch.no_grad():
                 print('losses', [loss.item() for loss in losses])
                 top_score = losses[2]
