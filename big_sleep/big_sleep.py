@@ -392,6 +392,12 @@ class Imagine(nn.Module):
         self.reset_optimizer()
 
     def train_step(self, epoch, i, pbar=None):
+        if i == 0:
+            # Save init image for informational purposes
+            with torch.no_grad():
+                image = self.model.model()[0].cpu()
+                save_image(image, str(self.filename))
+
         total_loss = 0
 
         for _ in range(self.gradient_accumulate_every):
@@ -403,7 +409,7 @@ class Imagine(nn.Module):
         self.optimizer.step()
         self.optimizer.zero_grad()
 
-        if i % self.save_every == 0:
+        if i % self.save_every == 0 and i != 0:
             with torch.no_grad():
                 print('losses', [loss.item() for loss in losses])
                 top_score = losses[2]
