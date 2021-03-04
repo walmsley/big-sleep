@@ -184,6 +184,7 @@ class BigSleep(nn.Module):
         self.image_size = image_size
         self.num_cutouts = num_cutouts
         self.experimental_resample = experimental_resample
+        self.biggan_seed_dim = biggan_seed_dim
 
         self.interpolation_settings = {'mode': 'bilinear', 'align_corners': False} if bilinear else {'mode': 'nearest'}
 
