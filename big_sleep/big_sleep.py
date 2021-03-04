@@ -198,9 +198,12 @@ class BigSleep(nn.Module):
         self.model.init_latents()
 
     def forward(self, text_embed, return_loss = True):
-        width, num_cutouts = self.image_size, self.num_cutouts
+        width = (self.image_size*self.biggan_seed_dim[1]) // 4
+        height = (self.image_size*self.biggan_seed_dim[0]) // 4
+        num_cutouts = self.num_cutouts
 
         out = self.model()
+        print('out.shape', out.shape)
 
         if not return_loss:
             return out
@@ -208,11 +211,11 @@ class BigSleep(nn.Module):
         pieces = []
         for ch in range(num_cutouts):
             if self.num_cutouts > 1:
-                size = int(width * torch.zeros(1,).normal_(mean=.8, std=.3).clip(.4375, .998)) #224 to 511
+                size = int(min(width,height) * torch.zeros(1,).normal_(mean=.8, std=.3).clip(.4375, .998)) #224 to 511
                 offsetx = torch.randint(0, width - size, ())
-                offsety = torch.randint(0, width - size, ())
+                offsety = torch.randint(0, height - size, ())
             else:
-                size = width
+                size = min(width,height)
                 offsetx = 0
                 offsety = 0
             apper = out[:, :, offsetx:offsetx + size, offsety:offsety + size]
