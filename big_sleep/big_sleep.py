@@ -204,7 +204,6 @@ class BigSleep(nn.Module):
         num_cutouts = self.num_cutouts
 
         out = self.model()
-        print('out.shape', out.shape)
 
         if not return_loss:
             return out
@@ -219,7 +218,7 @@ class BigSleep(nn.Module):
                 size = min(width,height)
                 offsetx = 0
                 offsety = 0
-            apper = out[:, :, offsetx:offsetx + size, offsety:offsety + size]
+            apper = out[:, :, offsety:offsety + size, offsetx:offsetx + size]
             if (self.experimental_resample):
                 apper = resample(apper, (224, 224))
             else:
