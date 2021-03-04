@@ -208,14 +208,15 @@ class BigSleep(nn.Module):
         if not return_loss:
             return out
 
+        min_size = min(width,height)
         pieces = []
         for ch in range(num_cutouts):
             if self.num_cutouts > 1:
-                size = int(min(width,height) * torch.zeros(1,).normal_(mean=.8, std=.3).clip(.4375, .998)) #224 to 511
+                size = int(min_size * torch.zeros(1,).normal_(mean=.8, std=.3).clip(224./min_size, .998)) #224 to 511
                 offsetx = torch.randint(0, width - size, ())
                 offsety = torch.randint(0, height - size, ())
             else:
-                size = min(width,height)
+                size = min_size
                 offsetx = 0
                 offsety = 0
             apper = out[:, :, offsety:offsety + size, offsetx:offsetx + size]
