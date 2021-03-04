@@ -488,8 +488,8 @@ class Generator(nn.Module):
         ch = config.channel_width
         condition_vector_dim = config.z_dim * 2
 
-        self.gen_z = snlinear(in_features=condition_vector_dim,
-                              out_features=seed_dim[0] * seed_dim[1] * 16 * ch, eps=config.eps)
+        #self.gen_z = snlinear(in_features=condition_vector_dim,
+        #                      out_features=4 * 4 * 16 * ch, eps=config.eps)
 
         layers = []
         for i, layer in enumerate(config.layers):
