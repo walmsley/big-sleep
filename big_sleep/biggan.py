@@ -480,14 +480,16 @@ class GenBlock(nn.Module):
         return out
 
 class Generator(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, seed_dim):
         super(Generator, self).__init__()
         self.config = config
+        self.seed_dim = seed_dim
+        print('Seed dim set internally as ', self.seed_dim)
         ch = config.channel_width
         condition_vector_dim = config.z_dim * 2
 
         self.gen_z = snlinear(in_features=condition_vector_dim,
-                              out_features=4 * 4 * 16 * ch, eps=config.eps)
+                              out_features=seed_dim[0] * seed_dim[1] * 16 * ch, eps=config.eps)
 
         layers = []
         for i, layer in enumerate(config.layers):
@@ -513,7 +515,7 @@ class Generator(nn.Module):
         # We use this conversion step to be able to use TF weights:
         # TF convention on shape is [batch, height, width, channels]
         # PT convention on shape is [batch, channels, height, width]
-        z = z.view(-1, 4, 4, 16 * self.config.channel_width)
+        z = z.view(-1, self.seed_dim[0], self.seed_dim[1], 16 * self.config.channel_width)
         z = z.permute(0, 3, 1, 2).contiguous()
 
         next_available_latent_index = 0
@@ -564,11 +566,11 @@ class BigGAN(nn.Module):
         model.load_state_dict(state_dict, strict=False)
         return model
 
-    def __init__(self, config):
+    def __init__(self, config, seed_dim=(4,4)):
         super(BigGAN, self).__init__()
         self.config = config
         self.embeddings = nn.Linear(config.num_classes, config.z_dim, bias=False)
-        self.generator = Generator(config)
+        self.generator = Generator(config, seed_dim)
 
     def forward(self, z, cls_white, embed, y_white, y_unwhite, truncation):
         assert 0 < truncation <= 1

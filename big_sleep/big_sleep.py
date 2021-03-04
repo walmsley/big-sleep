@@ -95,6 +95,7 @@ class Latents(torch.nn.Module):
         z_dim = 128,
         clamp_lim_cls = 10.,
         clamp_lim_normu = 10.,
+        biggan_seed_dim = (4,4),
     ):
         super().__init__()
         self.normu = torch.nn.Parameter(torch.zeros(num_latents, z_dim).normal_(std = 1))
@@ -104,7 +105,7 @@ class Latents(torch.nn.Module):
         self.clamp_lim_normu = clamp_lim_normu
         self.clamp_lim_cls = clamp_lim_cls
         self.register_buffer('thresh_lat', torch.tensor(1))
-        self.y_white = torch.nn.Parameter(torch.zeros(16, 2048).normal_(mean = 0.0, std = 1.0))
+        self.y_white = torch.nn.Parameter(torch.zeros(biggan_seed_dim[0]*biggan_seed_dim[1], 2048).normal_(mean = 0.0, std = 1.0))
         self.y_unwhite_transform = self.init_from_pca_data("data/biggan_pca_y.pt")
         self.y_unwhite_transform_mean = self.init_from_pca_data("data/biggan_pca_y_mean.pt")
 
@@ -135,10 +136,12 @@ class Model(nn.Module):
         image_size,
         clamp_lim_cls = 10.,
         clamp_lim_normu = 10.,
+        biggan_seed_dim = (4,4),
     ):
         super().__init__()
         assert image_size in (128, 256, 512), 'image size must be one of 128, 256, or 512'
-        self.biggan = BigGAN.from_pretrained(f'biggan-deep-{image_size}')
+        self.biggan_seed_dim = biggan_seed_dim
+        self.biggan = BigGAN.from_pretrained(f'biggan-deep-{image_size}', seed_dim=biggan_seed_dim)
 
         self.clamp_lim_cls = clamp_lim_cls
         self.clamp_lim_normu = clamp_lim_normu
@@ -151,6 +154,7 @@ class Model(nn.Module):
             z_dim = self.biggan.config.class_embed_dim,
             clamp_lim_cls = self.clamp_lim_cls,
             clamp_lim_normu = self.clamp_lim_normu,
+            biggan_seed_dim = self.biggan_seed_dim
         )
 
     def set_latents(self, latents):
@@ -173,6 +177,7 @@ class BigSleep(nn.Module):
         experimental_resample = False,
         clamp_lim_cls = 10.,
         clamp_lim_normu = 10.,
+        biggan_seed_dim = (4,4),
     ):
         super().__init__()
         self.loss_coef = loss_coef
@@ -186,6 +191,7 @@ class BigSleep(nn.Module):
             image_size = image_size,
             clamp_lim_cls = clamp_lim_cls,
             clamp_lim_normu = clamp_lim_normu,
+            biggan_seed_dim = biggan_seed_dim,
         )
 
     def reset(self):
@@ -299,6 +305,7 @@ class Imagine(nn.Module):
         scale_loss = (1.,1.,1.,1.),
         clamp_lim_cls = 10.,
         clamp_lim_normu = 10.,
+        biggan_seed_dim = (4,4),
     ):
         super().__init__()
 
@@ -323,6 +330,7 @@ class Imagine(nn.Module):
             num_cutouts = num_cutouts,
             clamp_lim_cls = clamp_lim_cls,
             clamp_lim_normu = clamp_lim_normu,
+            biggan_seed_dim = biggan_seed_dim,
         ).cuda()
 
         self.model = model
