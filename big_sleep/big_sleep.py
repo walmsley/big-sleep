@@ -419,14 +419,17 @@ class Imagine(nn.Module):
                 if pbar is not None:
                     pbar.update(1)
                 else:
-                    print(f'image updated at "./{str(self.filename)}"')
+                    #print(f'image updated at "./{str(self.filename)}"')
+                    print('\n')
 
 
                 if self.save_progress:
                     total_iterations = epoch * self.iterations + i
                     #num = total_iterations // self.save_every
                     save_image(image, Path(f'./{self.textpath}.{total_iterations}.png'))
-                    torch.save(self.model.model.latents, Path(f'./{self.textpath}.{total_iterations}.pth'))
+                    latent_path = f'./{self.textpath}.{total_iterations}.pth'
+                    torch.save(self.model.model.latents, Path(latent_path))
+                    print(f'latents saved @ {latent_path}')
 
                 if self.save_best and top_score.item() < self.current_best_score:
                     self.current_best_score = top_score.item()
