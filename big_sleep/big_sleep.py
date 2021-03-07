@@ -178,6 +178,7 @@ class BigSleep(nn.Module):
         clamp_lim_cls = 10.,
         clamp_lim_normu = 10.,
         biggan_seed_dim = (4,4),
+        perceptor = perceptor,
     ):
         super().__init__()
         self.loss_coef = loss_coef
@@ -185,6 +186,7 @@ class BigSleep(nn.Module):
         self.num_cutouts = num_cutouts
         self.experimental_resample = experimental_resample
         self.biggan_seed_dim = biggan_seed_dim
+        self.perceptor = perceptor
 
         self.interpolation_settings = {'mode': 'bilinear', 'align_corners': False} if bilinear else {'mode': 'nearest'}
 
@@ -229,7 +231,7 @@ class BigSleep(nn.Module):
         into = torch.cat(pieces)
         into = normalize_image(into)
 
-        image_embed = perceptor.encode_image(into)
+        image_embed = self.perceptor.encode_image(into)
 
         latents, cls_white, cls_embed, y_white, y_unwhite = self.model.latents()
         num_latents = latents.shape[0]
