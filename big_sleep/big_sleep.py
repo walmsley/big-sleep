@@ -162,8 +162,8 @@ class Model(nn.Module):
 
     def forward(self):
         self.biggan.eval()
-        out = self.biggan(*self.latents(), 1)
-        return (out + 1) / 2
+        out, layer4_output = self.biggan(*self.latents(), 1)
+        return (out + 1) / 2, layer4_output
 
 # load siren
 
@@ -205,7 +205,8 @@ class BigSleep(nn.Module):
         height = (self.image_size*self.biggan_seed_dim[0]) // 4
         num_cutouts = self.num_cutouts
 
-        out = self.model()
+        out, layer4_output = self.model()
+        print('layer4_output',layer4_output.size())
 
         if not return_loss:
             return out
@@ -397,7 +398,7 @@ class Imagine(nn.Module):
         if i == 0:
             # Save init image for informational purposes
             with torch.no_grad():
-                image = self.model.model()[0].cpu()
+                image = self.model.model()[0][0].cpu()
                 save_image(image, str(self.filename))
 
         total_loss = 0
@@ -415,7 +416,7 @@ class Imagine(nn.Module):
             with torch.no_grad():
                 print('losses', [loss.item() for loss in losses])
                 top_score = losses[2]
-                image = self.model.model()[0].cpu()
+                image = self.model.model()[0][0].cpu()
 
                 save_image(image, str(self.filename))
                 if pbar is not None:

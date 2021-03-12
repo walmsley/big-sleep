@@ -518,20 +518,24 @@ class Generator(nn.Module):
         z = z.view(-1, self.seed_dim[0], self.seed_dim[1], 16 * self.config.channel_width)
         z = z.permute(0, 3, 1, 2).contiguous()
 
+        layer4_output = None
+
         next_available_latent_index = 0
-        for layer in self.layers:
+        for i, layer in enumerate(self.layers):
             if isinstance(layer, GenBlock):
                 z = layer(z, cond_vector[next_available_latent_index].unsqueeze(0), truncation)
                 next_available_latent_index += 1
             else:
                 z = layer(z)
+            if i == 3:
+                layer4_output = z
 
         z = self.bn(z, truncation)
         z = self.relu(z)
         z = self.conv_to_rgb(z)
         z = z[:, :3, ...]
         z = self.tanh(z)
-        return z
+        return z, layer4_output
 
 class BigGAN(nn.Module):
     """BigGAN Generator."""
@@ -580,8 +584,8 @@ class BigGAN(nn.Module):
         #embed = self.embeddings(class_label)
         cond_vector = torch.cat((z, embed), dim=1)
 
-        z = self.generator(y_unwhite, cond_vector, truncation)
-        return z
+        z, layer4_output = self.generator(y_unwhite, cond_vector, truncation)
+        return z, layer4_output
 
 def one_hot_from_int(int_or_list, batch_size=1):
     """ Create a one-hot vector from a class index or a list of class indices.
