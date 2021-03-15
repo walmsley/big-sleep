@@ -399,7 +399,12 @@ class Imagine(nn.Module):
             # Save init image for informational purposes
             with torch.no_grad():
                 image = self.model.model()[0][0].cpu()
+                total_iterations = epoch * self.iterations + i
                 save_image(image, str(self.filename))
+                save_image(image, Path(f'./{self.textpath}.{total_iterations:04d}.png'))
+                latent_path = f'./{self.textpath}.{total_iterations:04d}.pth'
+                torch.save(self.model.model.latents, Path(latent_path))
+                print(f'latents saved @ {latent_path}')
 
         total_loss = 0
 
