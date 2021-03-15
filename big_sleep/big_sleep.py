@@ -206,7 +206,7 @@ class BigSleep(nn.Module):
         num_cutouts = self.num_cutouts
 
         out, layer4_output = self.model()
-        print('layer4_output',layer4_output.size())
+        #print('layer4_output',layer4_output.size())
 
         if not return_loss:
             return out
@@ -429,8 +429,8 @@ class Imagine(nn.Module):
                 if self.save_progress:
                     total_iterations = epoch * self.iterations + i
                     #num = total_iterations // self.save_every
-                    save_image(image, Path(f'./{self.textpath}.{total_iterations}.png'))
-                    latent_path = f'./{self.textpath}.{total_iterations}.pth'
+                    save_image(image, Path(f'./{self.textpath}.{total_iterations:04d}.png'))
+                    latent_path = f'./{self.textpath}.{total_iterations:04d}.pth'
                     torch.save(self.model.model.latents, Path(latent_path))
                     print(f'latents saved @ {latent_path}')
 
