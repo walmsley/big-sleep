@@ -531,6 +531,7 @@ class Generator(nn.Module):
             if i == 3:
                 layer4_output = z
             layer.cpu()
+            torch.cuda.empty_cache()
 
         z = self.bn(z, truncation)
         z = self.relu(z)
