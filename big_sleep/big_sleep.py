@@ -23,7 +23,7 @@ from einops import rearrange
 
 from .resample import resample
 
-assert torch.cuda.is_available(), 'CUDA must be available in order to use Deep Daze'
+#assert torch.cuda.is_available(), 'CUDA must be available in order to use Deep Daze'
 
 # graceful keyboard interrupt
 
@@ -338,7 +338,7 @@ class Imagine(nn.Module):
             clamp_lim_cls = clamp_lim_cls,
             clamp_lim_normu = clamp_lim_normu,
             biggan_seed_dim = biggan_seed_dim,
-        ).cuda()
+        )
 
         self.model = model
 
@@ -372,7 +372,7 @@ class Imagine(nn.Module):
 
         self.textpath = textpath
         self.filename = Path(f'./{textpath}.png')
-        encoded_text = tokenize(text).cuda()
+        encoded_text = tokenize(text)
         self.encoded_text = perceptor.encode_text(encoded_text).detach()
 
     def set_textpath(self, textpath):
@@ -391,7 +391,7 @@ class Imagine(nn.Module):
 
     def reset(self):
         self.model.reset()
-        self.model = self.model.cuda()
+        #self.model = self.model
         self.reset_optimizer()
 
     def train_step(self, epoch, i, pbar=None):
