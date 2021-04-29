@@ -16,7 +16,6 @@ from pathlib import Path
 from tqdm import tqdm, trange
 from collections import namedtuple
 
-from big_sleep.biggan import BigGAN
 from big_sleep.clip import load, tokenize, normalize_image
 
 from einops import rearrange
@@ -85,85 +84,36 @@ def differentiable_topk(x, k, temperature=1.):
 
 perceptor, preprocess = load()
 
-# load biggan
-
 class Latents(torch.nn.Module):
     def __init__(
         self,
-        num_latents = 14,
-        cls_embed_dim = 128,
-        z_dim = 128,
-        clamp_lim_cls = 10.,
-        clamp_lim_normu = 10.,
-        biggan_seed_dim = (4,4),
+        img_size = (1024,1024), # H,W
     ):
         super().__init__()
-        self.normu = torch.nn.Parameter(torch.zeros(num_latents, z_dim).normal_(std = 1))
-        self.cls_white = torch.nn.Parameter(torch.zeros(num_latents, cls_embed_dim).normal_(mean = 0.0, std = 1.0))
-        self.cls_unwhiten_transform = self.init_from_pca_data("data/biggan_pca_cls.pt")
-        #print('loaded pca data:', self.cls_unwhiten_transform)
-        self.clamp_lim_normu = clamp_lim_normu
-        self.clamp_lim_cls = clamp_lim_cls
-        self.register_buffer('thresh_lat', torch.tensor(1))
-        self.y_white = torch.nn.Parameter(torch.zeros(biggan_seed_dim[0]*biggan_seed_dim[1], 2048).normal_(mean = 0.0, std = 1.0))
-        self.y_unwhite_transform = self.init_from_pca_data("data/biggan_pca_y.pt")
-        self.y_unwhite_transform_mean = self.init_from_pca_data("data/biggan_pca_y_mean.pt")
-
-    def init_from_pca_data(self, fname="data/biggan_cls_pca.pt"):
-        # Note: this transform has been precomputed as follows:
-        #  First, pca was computed on 1000 sample cls embeddings using:
-        # ```
-        #  W = model.model.model.biggan.embeddings.weight.cpu().detach().numpy()
-        #  from sklearn.decomposition import PCA
-        #  pca = PCA()
-        #  pca.fit(W.T)
-        # ```
-        # Then, we prepared a single matrix that acts like an inverse pca transform.
-        # We premultiplied in singular values to properly unwhiten our new input data with a single resulting matrix.
-        # `biggan_pca = np.multiply(np.tile(np.expand_dims(pca.singular_values_/np.sqrt(1000), axis=-1),(1,128)), pca.components_)`
-        return torch.load(Path(os.path.join(os.path.dirname(os.path.abspath(__file__)), fname)).open(mode='rb'))
+        self.pixels = torch.nn.Parameter(torch.zeros(1, 3, img_size[0], img_size[1]).normal_(mean=0.5, std=0.2))
 
     def forward(self):
-        normu_clipped = torch.clip(self.normu, -self.clamp_lim_normu, self.clamp_lim_normu)
-        cls_white_clipped = torch.clip(self.cls_white, -self.clamp_lim_cls, self.clamp_lim_cls)
-        cls_embed = torch.matmul(cls_white_clipped, self.cls_unwhiten_transform)
-        y_unwhite = torch.matmul(self.y_white, self.y_unwhite_transform) + self.y_unwhite_transform_mean
-        return normu_clipped, cls_white_clipped, cls_embed, self.y_white, y_unwhite
+        return self.pixels
 
 class Model(nn.Module):
     def __init__(
         self,
-        image_size,
-        clamp_lim_cls = 10.,
-        clamp_lim_normu = 10.,
-        biggan_seed_dim = (4,4),
+        img_size = (1024,1024),
     ):
         super().__init__()
-        assert image_size in (128, 256, 512), 'image size must be one of 128, 256, or 512'
-        self.biggan_seed_dim = biggan_seed_dim
-        self.biggan = BigGAN.from_pretrained(f'biggan-deep-{image_size}', seed_dim=biggan_seed_dim)
-
-        self.clamp_lim_cls = clamp_lim_cls
-        self.clamp_lim_normu = clamp_lim_normu
+        self.img_size = img_size
         self.init_latents()
 
     def init_latents(self):
         self.latents = Latents(
-            num_latents = len(self.biggan.config.layers),
-            cls_embed_dim = self.biggan.config.z_dim,
-            z_dim = self.biggan.config.class_embed_dim,
-            clamp_lim_cls = self.clamp_lim_cls,
-            clamp_lim_normu = self.clamp_lim_normu,
-            biggan_seed_dim = self.biggan_seed_dim
+            img_size = self.img_size
         )
 
     def set_latents(self, latents):
         self.latents = latents
 
     def forward(self):
-        self.biggan.eval()
-        out, layer4_output = self.biggan(*self.latents(), 1)
-        return (out + 1) / 2, layer4_output
+        return self.latents()
 
 # load siren
 
@@ -172,41 +122,33 @@ class BigSleep(nn.Module):
         self,
         num_cutouts = 128,
         loss_coef = 100,
-        image_size = 512,
+        img_size = (1024, 1024),
         bilinear = False,
         experimental_resample = False,
-        clamp_lim_cls = 10.,
-        clamp_lim_normu = 10.,
-        biggan_seed_dim = (4,4),
         perceptor = perceptor,
     ):
         super().__init__()
         self.loss_coef = loss_coef
-        self.image_size = image_size
+        self.img_size = img_size
         self.num_cutouts = num_cutouts
         self.experimental_resample = experimental_resample
-        self.biggan_seed_dim = biggan_seed_dim
         self.perceptor = perceptor
 
         self.interpolation_settings = {'mode': 'bilinear', 'align_corners': False} if bilinear else {'mode': 'nearest'}
 
         self.model = Model(
-            image_size = image_size,
-            clamp_lim_cls = clamp_lim_cls,
-            clamp_lim_normu = clamp_lim_normu,
-            biggan_seed_dim = biggan_seed_dim,
+            img_size = img_size
         )
 
     def reset(self):
         self.model.init_latents()
 
     def forward(self, text_embed, return_loss = True):
-        width = (self.image_size*self.biggan_seed_dim[1]) // 4
-        height = (self.image_size*self.biggan_seed_dim[0]) // 4
+        width = self.img_size[1]
+        height = self.img_size[0]
         num_cutouts = self.num_cutouts
 
-        out, layer4_output = self.model()
-        #print('layer4_output',layer4_output.size())
+        out = self.model()
 
         if not return_loss:
             return out
@@ -234,58 +176,11 @@ class BigSleep(nn.Module):
 
         image_embed = self.perceptor.encode_image(into)
 
-        latents, cls_white, cls_embed, y_white, y_unwhite = self.model.latents()
-        num_latents = latents.shape[0]
-        num_pix_vectors = y_white.shape[0]
-        latent_thres = self.model.latents.thresh_lat
-
-        lat_loss =  torch.abs(1 - torch.std(latents, dim=1)).mean() + \
-                    torch.abs(torch.mean(latents, dim = 1)).mean() + \
-                    4 * torch.max(torch.square(latents).mean(), latent_thres)
-
-        for array in latents:
-            mean = torch.mean(array)
-            diffs = array - mean
-            var = torch.mean(torch.pow(diffs, 2.0))
-            std = torch.pow(var, 0.5)
-            zscores = diffs / std
-            skews = torch.mean(torch.pow(zscores, 3.0))
-            kurtoses = torch.mean(torch.pow(zscores, 4.0)) - 3.0
-
-            lat_loss = lat_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
-
-        cls_white_loss =  torch.abs(1 - torch.std(cls_white, dim=1)).mean() + \
-                    torch.abs(torch.mean(cls_white, dim = 1)).mean() + \
-                    4 * torch.max(torch.square(cls_white).mean(), latent_thres)
-
-        for array in cls_white:
-            mean = torch.mean(array)
-            diffs = array - mean
-            var = torch.mean(torch.pow(diffs, 2.0))
-            std = torch.pow(var, 0.5)
-            zscores = diffs / std
-            skews = torch.mean(torch.pow(zscores, 3.0))
-            kurtoses = torch.mean(torch.pow(zscores, 4.0)) - 3.0
-
-            cls_white_loss = cls_white_loss + torch.abs(kurtoses) / num_latents + torch.abs(skews) / num_latents
-
-        y_loss =  torch.abs(1 - torch.std(y_white, dim=1)).mean() + \
-                    torch.abs(torch.mean(y_white, dim = 1)).mean() + \
-                    4 * torch.max(torch.square(y_white).mean(), latent_thres)
-
-        for array in y_white:
-            mean = torch.mean(array)
-            diffs = array - mean
-            var = torch.mean(torch.pow(diffs, 2.0))
-            std = torch.pow(var, 0.5)
-            zscores = diffs / std
-            skews = torch.mean(torch.pow(zscores, 3.0))
-            kurtoses = torch.mean(torch.pow(zscores, 4.0)) - 3.0
-
-            y_loss = y_loss + torch.abs(kurtoses) / num_pix_vectors + torch.abs(skews) / num_pix_vectors
+        #pixels = self.model.latents()
+        #TODO: regularization of pixels. also, should these be clamped to [0,1]?
 
         sim_loss = -self.loss_coef * torch.cosine_similarity(text_embed, image_embed, dim = -1).mean()
-        return (lat_loss, cls_white_loss, sim_loss, y_loss)
+        return (0, 0, sim_loss, 0)
 
 class Imagine(nn.Module):
     def __init__(
@@ -293,7 +188,7 @@ class Imagine(nn.Module):
         text,
         *,
         lr = .07,
-        image_size = 512,
+        img_size = (1024,1024),
         gradient_accumulate_every = 1,
         save_every = 50,
         epochs = 20,
@@ -310,9 +205,6 @@ class Imagine(nn.Module):
         num_cutouts = 128,
         use_adamp = False,
         scale_loss = (1.,1.,1.,1.),
-        clamp_lim_cls = 10.,
-        clamp_lim_normu = 10.,
-        biggan_seed_dim = (4,4),
     ):
         super().__init__()
 
@@ -331,13 +223,10 @@ class Imagine(nn.Module):
         self.iterations = iterations
 
         model = BigSleep(
-            image_size = image_size,
+            img_size = img_size,
             bilinear = bilinear,
             experimental_resample = experimental_resample,
             num_cutouts = num_cutouts,
-            clamp_lim_cls = clamp_lim_cls,
-            clamp_lim_normu = clamp_lim_normu,
-            biggan_seed_dim = biggan_seed_dim,
         ).cuda()
 
         self.model = model
@@ -398,7 +287,7 @@ class Imagine(nn.Module):
         if i == 0:
             # Save init image for informational purposes
             with torch.no_grad():
-                image = self.model.model()[0][0].cpu()
+                image = self.model.model()[0].cpu()
                 total_iterations = epoch * self.iterations + i
                 save_image(image, str(self.filename))
                 save_image(image, Path(f'./{self.textpath}.{total_iterations:04d}.png'))
@@ -421,7 +310,7 @@ class Imagine(nn.Module):
             with torch.no_grad():
                 print('losses', [loss.item() for loss in losses])
                 top_score = losses[2]
-                image = self.model.model()[0][0].cpu()
+                image = self.model.model()[0].cpu()
 
                 save_image(image, str(self.filename))
                 if pbar is not None:
