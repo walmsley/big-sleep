@@ -132,7 +132,7 @@ class SimpleTokenizer(object):
 def _download(url, root = os.path.expanduser("~/.cache/clip")):
     os.makedirs(root, exist_ok=True)
     filename = os.path.basename(url)
-    
+
     expected_sha256 = url.split("/")[-2]
     download_target = os.path.join(root, filename)
 
@@ -146,7 +146,7 @@ def _download(url, root = os.path.expanduser("~/.cache/clip")):
             warnings.warn(f"{download_target} exists, but the SHA256 checksum does not match; re-downloading the file")
 
     with urllib.request.urlopen(url) as source, open(download_target, "wb") as output:
-        with tqdm(total=int(source.info().get("Content-Length")), ncols=80) as loop:        
+        with tqdm(total=int(source.info().get("Content-Length")), ncols=80) as loop:
             while True:
                 buffer = source.read(8192)
                 if not buffer:
@@ -162,7 +162,7 @@ def _download(url, root = os.path.expanduser("~/.cache/clip")):
 
 normalize_image = Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
 
-def load(device = ("cuda" if torch.cuda.is_available() else "cpu")):
+def load(device = "cpu"):#("cuda" if torch.cuda.is_available() else "cpu")):
     model_path = _download(MODEL_PATH)
     model = torch.jit.load(model_path, map_location = device).eval()
     n_px = model.input_resolution.item()
