@@ -568,7 +568,7 @@ class BigGAN(nn.Module):
 
         # Instantiate model.
         model = cls(config, *inputs, **kwargs)
-        state_dict = torch.load(resolved_model_file, map_location='cpu' if not torch.cuda.is_available() else None)
+        state_dict = torch.load(resolved_model_file, map_location='cpu')# if not torch.cuda.is_available() else None)
         model.load_state_dict(state_dict, strict=False)
         return model
 
