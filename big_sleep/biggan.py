@@ -522,6 +522,7 @@ class Generator(nn.Module):
 
         next_available_latent_index = 0
         for i, layer in enumerate(self.layers):
+            layer.cuda()
             if isinstance(layer, GenBlock):
                 z = layer(z, cond_vector[next_available_latent_index].unsqueeze(0), truncation)
                 next_available_latent_index += 1
@@ -529,6 +530,7 @@ class Generator(nn.Module):
                 z = layer(z)
             if i == 3:
                 layer4_output = z
+            layer.cpu()
 
         z = self.bn(z, truncation)
         z = self.relu(z)
