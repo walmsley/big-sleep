@@ -141,7 +141,7 @@ class Model(nn.Module):
         super().__init__()
         assert image_size in (128, 256, 512), 'image size must be one of 128, 256, or 512'
         self.biggan_seed_dim = biggan_seed_dim
-        self.biggan = BigGAN.from_pretrained(f'biggan-deep-{image_size}', seed_dim=biggan_seed_dim)
+        self.biggan = BigGAN.from_pretrained(f'biggan-deep-{image_size}', seed_dim=biggan_seed_dim).half()
 
         self.clamp_lim_cls = clamp_lim_cls
         self.clamp_lim_normu = clamp_lim_normu
