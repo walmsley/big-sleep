@@ -406,7 +406,7 @@ class BigGANBatchNorm(nn.Module):
 
     def forward(self, x, truncation, condition_vector=None):
         # Retreive pre-computed statistics associated to this truncation
-        coef, start_idx = math.modf(truncation / self.step_size)
+        coef, start_idx = math.modf(1 / self.step_size)
         start_idx = int(start_idx)
         if coef != 0.0:  # Interpolate
             running_mean = self.running_means[start_idx] * coef + self.running_means[start_idx + 1] * (1 - coef)
@@ -454,21 +454,21 @@ class GenBlock(nn.Module):
     def forward(self, x, cond_vector, truncation):
         x0 = x
 
-        x = self.bn_0(x, truncation, cond_vector)
+        x = self.bn_0(x, 1, cond_vector)
         x = self.relu(x)
         x = self.conv_0(x)
 
-        x = self.bn_1(x, truncation, cond_vector)
+        x = self.bn_1(x, 1, cond_vector)
         x = self.relu(x)
         if self.up_sample:
             x = F.interpolate(x, scale_factor=2, mode='nearest')
         x = self.conv_1(x)
 
-        x = self.bn_2(x, truncation, cond_vector)
+        x = self.bn_2(x, 1, cond_vector)
         x = self.relu(x)
         x = self.conv_2(x)
 
-        x = self.bn_3(x, truncation, cond_vector)
+        x = self.bn_3(x, 1, cond_vector)
         x = self.relu(x)
         x = self.conv_3(x)
 
@@ -525,7 +525,7 @@ class Generator(nn.Module):
         next_available_latent_index = 0
         for i, layer in enumerate(self.layers):
             if isinstance(layer, GenBlock):
-                z = checkpoint(layer, z, cond_vector[next_available_latent_index].unsqueeze(0), truncation)
+                z = checkpoint(layer, z, cond_vector[next_available_latent_index].unsqueeze(0), 1)
                 #z = layer(z, cond_vector[next_available_latent_index].unsqueeze(0), truncation)
                 next_available_latent_index += 1
             else:
@@ -534,7 +534,7 @@ class Generator(nn.Module):
             if i == 3:
                 layer4_output = z
 
-        z = self.bn(z, truncation)
+        z = self.bn(z, 1)
         z = self.relu(z)
         z = self.conv_to_rgb(z)
         z = z[:, :3, ...]
@@ -581,14 +581,14 @@ class BigGAN(nn.Module):
         self.generator = Generator(config, seed_dim)
 
     def forward(self, z, cls_white, embed, y_white, y_unwhite, truncation):
-        assert 0 < truncation <= 1
+        #assert 0 < truncation <= 1
 
         #note: we intentionally don't use cls_white and y_white
 
         #embed = self.embeddings(class_label)
         cond_vector = torch.cat((z, embed), dim=1)
 
-        z, layer4_output = self.generator(y_unwhite, cond_vector, truncation)
+        z, layer4_output = self.generator(y_unwhite, cond_vector, 1)
         return z, layer4_output
 
 def one_hot_from_int(int_or_list, batch_size=1):
