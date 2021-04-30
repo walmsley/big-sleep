@@ -451,7 +451,7 @@ class GenBlock(nn.Module):
 
         self.relu = nn.ReLU()
 
-    def forward(self, x, cond_vector, truncation):
+    def forward(self, x, cond_vector):
         x0 = x
 
         x = self.bn_0(x, 1, cond_vector)
@@ -525,7 +525,7 @@ class Generator(nn.Module):
         next_available_latent_index = 0
         for i, layer in enumerate(self.layers):
             if isinstance(layer, GenBlock):
-                z = checkpoint(layer, z, cond_vector[next_available_latent_index].unsqueeze(0), 1)
+                z = checkpoint(layer, z, cond_vector[next_available_latent_index].unsqueeze(0))
                 #z = layer(z, cond_vector[next_available_latent_index].unsqueeze(0), truncation)
                 next_available_latent_index += 1
             else:
