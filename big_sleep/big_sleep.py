@@ -401,7 +401,7 @@ class Imagine(nn.Module):
         if i == 0:
             # Save init image for informational purposes
             with torch.no_grad():
-                image = self.model.model()[0][0].cpu()
+                image = self.model.model()[0][0].cpu().float()
                 total_iterations = epoch * self.iterations + i
                 save_image(image, str(self.filename))
                 save_image(image, Path(f'./{self.textpath}.{total_iterations:04d}.png'))
@@ -424,7 +424,7 @@ class Imagine(nn.Module):
             with torch.no_grad():
                 print('losses', [loss.item() for loss in losses])
                 top_score = losses[2]
-                image = self.model.model()[0][0].cpu()
+                image = self.model.model()[0][0].cpu().float()
 
                 save_image(image, str(self.filename))
                 if pbar is not None:
