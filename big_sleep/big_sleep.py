@@ -23,6 +23,8 @@ from einops import rearrange
 
 from .resample import resample
 
+from torch.cuda.amp import autocast
+
 assert torch.cuda.is_available(), 'CUDA must be available in order to use Deep Daze'
 
 # graceful keyboard interrupt
@@ -161,8 +163,9 @@ class Model(nn.Module):
         self.latents = latents
 
     def forward(self):
-        self.biggan.eval()
-        out, layer4_output = self.biggan(*self.latents(), 1)
+        with autocast():
+            self.biggan.eval()
+            out, layer4_output = self.biggan(*self.latents(), 1)
         return (out + 1) / 2, layer4_output
 
 # load siren
