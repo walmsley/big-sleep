@@ -390,7 +390,7 @@ class Imagine(nn.Module):
         if self.use_adamp:
             self.optimizer = AdamP(self.model.model.latents.parameters(), self.lr)
         else:
-            self.optimizer = Adam(self.model.model.latents.parameters(), self.lr, eps=1e-3)#, weight_decay=1e-4)
+            self.optimizer = Adam(self.model.model.latents.parameters(), self.lr, eps=1e-4)#, weight_decay=1e-4)
 
     def reset(self):
         self.model.reset()
