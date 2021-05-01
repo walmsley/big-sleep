@@ -406,28 +406,29 @@ class BigGANBatchNorm(nn.Module):
 
     def forward(self, x, truncation, condition_vector=None):
         # Retreive pre-computed statistics associated to this truncation
-        coef, start_idx = math.modf(1 / self.step_size)
-        start_idx = int(start_idx)
-        if coef != 0.0:  # Interpolate
-            running_mean = self.running_means[start_idx] * coef + self.running_means[start_idx + 1] * (1 - coef)
-            running_var = self.running_vars[start_idx] * coef + self.running_vars[start_idx + 1] * (1 - coef)
-        else:
-            running_mean = self.running_means[start_idx]
-            running_var = self.running_vars[start_idx]
+        with torch.cuda.amp.autocast(enabled=False):
+            coef, start_idx = math.modf(1 / self.step_size)
+            start_idx = int(start_idx)
+            if coef != 0.0:  # Interpolate
+                running_mean = self.running_means[start_idx] * coef + self.running_means[start_idx + 1] * (1 - coef)
+                running_var = self.running_vars[start_idx] * coef + self.running_vars[start_idx + 1] * (1 - coef)
+            else:
+                running_mean = self.running_means[start_idx]
+                running_var = self.running_vars[start_idx]
 
-        if self.conditional:
-            running_mean = running_mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-            running_var = running_var.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+            if self.conditional:
+                running_mean = running_mean.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+                running_var = running_var.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
 
-            weight = 1 + self.scale(condition_vector).unsqueeze(-1).unsqueeze(-1)
-            bias = self.offset(condition_vector).unsqueeze(-1).unsqueeze(-1)
+                weight = 1 + self.scale(condition_vector).unsqueeze(-1).unsqueeze(-1)
+                bias = self.offset(condition_vector).unsqueeze(-1).unsqueeze(-1)
 
-            out = (x - running_mean) / torch.sqrt(running_var + self.eps) * weight + bias
-        else:
-            out = F.batch_norm(x, running_mean, running_var, self.weight, self.bias,
-                               training=False, momentum=0.0, eps=self.eps)
+                out = (x - running_mean) / torch.sqrt(running_var + self.eps) * weight + bias
+            else:
+                out = F.batch_norm(x, running_mean, running_var, self.weight, self.bias,
+                                   training=False, momentum=0.0, eps=self.eps)
 
-        return out
+            return out
 
 class GenBlock(nn.Module):
     def __init__(self, in_size, out_size, condition_vector_dim, reduction_factor=4, up_sample=False,
