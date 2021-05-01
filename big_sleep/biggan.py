@@ -387,22 +387,23 @@ class BigGANBatchNorm(nn.Module):
     """
     def __init__(self, num_features, condition_vector_dim=None, n_stats=51, eps=1e-4, conditional=True):
         super(BigGANBatchNorm, self).__init__()
-        self.num_features = num_features
-        self.eps = eps
-        self.conditional = conditional
+        with torch.cuda.amp.autocast(enabled=False):
+            self.num_features = num_features
+            self.eps = eps
+            self.conditional = conditional
 
-        # We use pre-computed statistics for n_stats values of truncation between 0 and 1
-        self.register_buffer('running_means', torch.zeros(n_stats, num_features))
-        self.register_buffer('running_vars', torch.ones(n_stats, num_features))
-        self.step_size = 1.0 / (n_stats - 1)
+            # We use pre-computed statistics for n_stats values of truncation between 0 and 1
+            self.register_buffer('running_means', torch.zeros(n_stats, num_features))
+            self.register_buffer('running_vars', torch.ones(n_stats, num_features))
+            self.step_size = 1.0 / (n_stats - 1)
 
-        if conditional:
-            assert condition_vector_dim is not None
-            self.scale = snlinear(in_features=condition_vector_dim, out_features=num_features, bias=False, eps=eps)
-            self.offset = snlinear(in_features=condition_vector_dim, out_features=num_features, bias=False, eps=eps)
-        else:
-            self.weight = torch.nn.Parameter(torch.Tensor(num_features))
-            self.bias = torch.nn.Parameter(torch.Tensor(num_features))
+            if conditional:
+                assert condition_vector_dim is not None
+                self.scale = snlinear(in_features=condition_vector_dim, out_features=num_features, bias=False, eps=eps)
+                self.offset = snlinear(in_features=condition_vector_dim, out_features=num_features, bias=False, eps=eps)
+            else:
+                self.weight = torch.nn.Parameter(torch.Tensor(num_features))
+                self.bias = torch.nn.Parameter(torch.Tensor(num_features))
 
     def forward(self, x, truncation, condition_vector=None):
         # Retreive pre-computed statistics associated to this truncation
