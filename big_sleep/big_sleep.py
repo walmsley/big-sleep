@@ -108,6 +108,8 @@ class Latents(torch.nn.Module):
         self.y_white = torch.nn.Parameter(torch.zeros(biggan_seed_dim[0]*biggan_seed_dim[1], 2048).normal_(mean = 0.0, std = 1.0))
         self.y_unwhite_transform = self.init_from_pca_data("data/biggan_pca_y.pt")
         self.y_unwhite_transform_mean = self.init_from_pca_data("data/biggan_pca_y_mean.pt")
+        self.patch2x2_transform =  self.init_from_pca_data("biggan_pca_y2x2_256_4M.pt")
+        self.patch2x2_transform_mean =  self.init_from_pca_data("biggan_pca_y2x2_256_4M_mean.pt")
 
     def init_from_pca_data(self, fname="data/biggan_cls_pca.pt"):
         # Note: this transform has been precomputed as follows:
@@ -162,8 +164,8 @@ class Model(nn.Module):
 
     def forward(self):
         self.biggan.eval()
-        out = self.biggan(*self.latents(), 1)
-        return (out + 1) / 2
+        out, layer4_output = self.biggan(*self.latents(), 1)
+        return (out + 1) / 2, layer4_output
 
 # load siren
 
@@ -205,7 +207,8 @@ class BigSleep(nn.Module):
         height = (self.image_size*self.biggan_seed_dim[0]) // 4
         num_cutouts = self.num_cutouts
 
-        out = self.model()
+        out, layer4_output = self.model()
+        #print('layer4_output',layer4_output.size())
 
         if not return_loss:
             return out
@@ -397,8 +400,13 @@ class Imagine(nn.Module):
         if i == 0:
             # Save init image for informational purposes
             with torch.no_grad():
-                image = self.model.model()[0].cpu()
+                image = self.model.model()[0][0].cpu()
+                total_iterations = epoch * self.iterations + i
                 save_image(image, str(self.filename))
+                save_image(image, Path(f'./{self.textpath}.{total_iterations:04d}.png'))
+                latent_path = f'./{self.textpath}.{total_iterations:04d}.pth'
+                torch.save(self.model.model.latents, Path(latent_path))
+                print(f'latents saved @ {latent_path}')
 
         total_loss = 0
 
@@ -415,7 +423,7 @@ class Imagine(nn.Module):
             with torch.no_grad():
                 print('losses', [loss.item() for loss in losses])
                 top_score = losses[2]
-                image = self.model.model()[0].cpu()
+                image = self.model.model()[0][0].cpu()
 
                 save_image(image, str(self.filename))
                 if pbar is not None:
@@ -428,8 +436,8 @@ class Imagine(nn.Module):
                 if self.save_progress:
                     total_iterations = epoch * self.iterations + i
                     #num = total_iterations // self.save_every
-                    save_image(image, Path(f'./{self.textpath}.{total_iterations}.png'))
-                    latent_path = f'./{self.textpath}.{total_iterations}.pth'
+                    save_image(image, Path(f'./{self.textpath}.{total_iterations:04d}.png'))
+                    latent_path = f'./{self.textpath}.{total_iterations:04d}.pth'
                     torch.save(self.model.model.latents, Path(latent_path))
                     print(f'latents saved @ {latent_path}')
 
